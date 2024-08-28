@@ -1,0 +1,28 @@
+## Verify create_plan will return an error when a new route is added which has the same subnet as an existing route - but a unique gateway.
+# This differs from test_12 as each duplicated route has a unique gateway
+
+runLitpScript ../custom_setup.inc
+
+#create route
+litp create -p /infrastructure/networking/routes/test_56 -t route -o subnet='0.0.0.0/0' gateway='10.10.10.1'
+litp create -p /infrastructure/networking/networks/test_network1 -t network -o name='test1' subnet='10.10.10.0/24'
+
+litp create -p /infrastructure/networking/routes/default -t route -o subnet='0.0.0.0/0' gateway='192.168.0.1'
+
+#inherit route on node1
+litp inherit -p /deployments/d1/clusters/c1/nodes/n1/routes/route1 -s /infrastructure/networking/routes/test_56
+litp create -t eth -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if1 -o device_name='eth1' macaddress='00:50:56:00:00:61' ipaddress='10.10.10.10' network_name='test1'
+
+litp inherit -p /deployments/d1/clusters/c1/nodes/n1/routes/r1 -s /infrastructure/networking/routes/default
+
+#inherit route on node2
+litp inherit -p /deployments/d1/clusters/c1/nodes/n2/routes/route1 -s /infrastructure/networking/routes/test_56
+litp create -p /deployments/d1/clusters/c1/nodes/n2/network_interfaces/if1 -t eth -o device_name='eth1' macaddress='00:50:56:00:00:62' ipaddress='10.10.10.11' network_name='test1'
+
+litp inherit -p /deployments/d1/clusters/c1/nodes/n2/routes/r1 -s /infrastructure/networking/routes/default
+
+#assert ValidationError with expected message is present
+let __err_a --err_type ValidationError --err_message 'Create plan failed: Destination subnet "0.0.0.0/0" is duplicated across several routes: /deployments/d1/clusters/c1/nodes/n1/routes/r1 /deployments/d1/clusters/c1/nodes/n1/routes/route1' --err_vpath '/deployments/d1/clusters/c1/nodes/n1/routes'
+let __err_b --err_type ValidationError --err_message 'Create plan failed: Destination subnet "0.0.0.0/0" is duplicated across several routes: /deployments/d1/clusters/c1/nodes/n2/routes/r1 /deployments/d1/clusters/c1/nodes/n2/routes/route1' --err_vpath '/deployments/d1/clusters/c1/nodes/n2/routes'
+
+assertError __err_a __err_b create_plan

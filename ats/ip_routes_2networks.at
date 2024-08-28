@@ -1,0 +1,56 @@
+# two routes,two network interfaces 
+
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name='sample-profile' path='/var/www/html/6.4/os/x86_64/'
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/sp1
+
+litp create -t system -p /infrastructure/systems/vm1 -o system_name='MN1'
+litp create -t system -p /infrastructure/systems/vm2 -o system_name='MN2' 
+litp create -t disk -p /infrastructure/systems/vm1/disks/disk0 -o name=sda size=19G bootable=true uuid='LITPSC1DISK0000'
+litp create -t disk -p /infrastructure/systems/vm2/disks/disk0 -o name=sda size=19G bootable=true uuid='LITPSC2DISK0000'
+
+litp create -t network -p /infrastructure/networking/networks/network0 -o subnet=10.10.10.0/24    name=nodes litp_management=true  
+litp create -t network -p /infrastructure/networking/networks/network2 -o subnet=192.168.100.0/24 name=nodes3
+
+litp create -t system -p /infrastructure/systems/ms_system -o system_name='ms_system'
+litp inherit -p /ms/system -s /infrastructure/systems/ms_system
+
+litp create -t deployment -p /deployments/single_blade
+litp create -t cluster -p /deployments/single_blade/clusters/cluster1
+litp create -t node -p /deployments/single_blade/clusters/cluster1/nodes/node1 -o hostname='node1'
+litp inherit -p /deployments/single_blade/clusters/cluster1/nodes/node1/system -s /infrastructure/systems/vm1
+litp inherit -p /deployments/single_blade/clusters/cluster1/nodes/node1/os -s /software/profiles/rhel_6_4
+litp inherit -p /deployments/single_blade/clusters/cluster1/nodes/node1/storage_profile -s /infrastructure/storage/storage_profiles/sp1
+
+
+litp create -t node -p     /deployments/single_blade/clusters/cluster1/nodes/node2 -o hostname='node2'
+litp inherit -p /deployments/single_blade/clusters/cluster1/nodes/node2/system -s /infrastructure/systems/vm2
+litp inherit -p /deployments/single_blade/clusters/cluster1/nodes/node2/os -s /software/profiles/rhel_6_4
+litp inherit -p /deployments/single_blade/clusters/cluster1/nodes/node2/storage_profile -s /infrastructure/storage/storage_profiles/sp1
+
+litp create -t eth -p /deployments/single_blade/clusters/cluster1/nodes/node1/network_interfaces/if0 -o device_name=eth0 macaddress='DE:AD:BE:EF:45:51' ipaddress=10.10.10.101    network_name='nodes'
+litp create -t eth -p /deployments/single_blade/clusters/cluster1/nodes/node2/network_interfaces/if0 -o device_name=eth0 macaddress='DE:AD:BE:EF:45:52' ipaddress=10.10.10.102    network_name='nodes'
+litp create -t eth -p /deployments/single_blade/clusters/cluster1/nodes/node1/network_interfaces/if2 -o device_name=eth2 macaddress='52:54:00:34:db:ce' ipaddress=192.168.100.100 network_name='nodes3'
+litp create -t eth -p /deployments/single_blade/clusters/cluster1/nodes/node2/network_interfaces/if2 -o device_name=eth2 macaddress='52:54:00:53:f5:a0' ipaddress=192.168.100.101 network_name='nodes3'
+litp create -t eth -p /ms/network_interfaces/if0                                                     -o device_name=eth0 macaddress='52:54:00:4f:71:43' ipaddress=10.10.10.100    network_name='nodes'
+
+
+
+# routes
+litp create -t route -p /infrastructure/networking/routes/route0 -o subnet='0.0.0.0/0' gateway='10.10.10.1'
+litp create -t route -p /infrastructure/networking/routes/route1 -o subnet='192.168.0.0/24' gateway='10.10.10.1'
+litp create -t route -p /infrastructure/networking/routes/route3 -o subnet='1.1.1.1/32' gateway='192.168.100.254'
+
+litp inherit -p /ms/routes/default -s /infrastructure/networking/routes/route0
+
+litp inherit -p /deployments/single_blade/clusters/cluster1/nodes/node1/routes/default -s /infrastructure/networking/routes/route0
+litp inherit -p /deployments/single_blade/clusters/cluster1/nodes/node2/routes/default -s /infrastructure/networking/routes/route0
+
+litp inherit -p /deployments/single_blade/clusters/cluster1/nodes/node1/routes/route1 -s /infrastructure/networking/routes/route1
+litp inherit -p /deployments/single_blade/clusters/cluster1/nodes/node2/routes/route1 -s /infrastructure/networking/routes/route1
+
+litp inherit -p /deployments/single_blade/clusters/cluster1/nodes/node1/routes/route3 -s /infrastructure/networking/routes/route3
+litp inherit -p /deployments/single_blade/clusters/cluster1/nodes/node2/routes/route3 -s /infrastructure/networking/routes/route3
+
+litp create_plan
+litp run_plan
+assertDirectoryContents ip_routes_2networks/ /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/

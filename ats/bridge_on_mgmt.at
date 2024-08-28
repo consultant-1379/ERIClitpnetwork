@@ -1,0 +1,12 @@
+# LITPCDS-9149. A bridge does not need to have IP ... unless it is on management network !
+
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name=sample-profile version=rhel6 path=/profiles/node-iso/ arch=x86_64 breed=redhat
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+
+litp create -t network -p /infrastructure/networking/networks/mgmt -o name=mgmt subnet="10.4.23.0/24" litp_management=true
+
+litp create -t eth -p /ms/network_interfaces/eth1      -o device_name=eth0 macaddress=08:00:27:24:8f:27 bridge=br0
+litp create -t bridge -p /ms/network_interfaces/bridge -o device_name=br0  network_name=mgmt
+
+assertError create_plan
+

@@ -1,0 +1,12 @@
+## Verify creating a bond which has no slave result in an error being thrown when creating a plan
+
+runLitpScript ../custom_setup.inc
+
+#create network item
+litp create -t network -p /infrastructure/networking/networks/test_network2069 -o name='test1' subnet='10.10.10.0/24'
+
+##create bond without slave
+litp create -t bond -p /ms/network_interfaces/b_2069 -o device_name='bond2069' ipaddress='10.10.10.12' network_name='test1' mode='1' miimon='100'
+
+#assert create_plan ValidationError with expected message is present
+assertError create_plan --err_type ValidationError --err_message 'Create plan failed: Bond "bond2069" is not a master for any "eth" devices' --err_vpath "/ms/network_interfaces/b_2069"

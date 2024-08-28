@@ -1,0 +1,32 @@
+## This test ensures that user can update the 'subnet' property and throw a ValidationError if there is more than one default gateway defined
+
+runLitpScript ../custom_setup.inc
+
+litp create -t network -p /infrastructure/networking/networks/traffic2 -o subnet='172.16.200.128/24' litp_management='false' name='traffic2'
+litp create -t route -p /infrastructure/networking/routes/traffic2_gw -o subnet='172.16.168.0/32' gateway='172.16.200.130'
+
+litp create -t network -p /infrastructure/networking/networks/trafficluster1 -o subnet='172.16.100.0/24' litp_management='false' name='trafficluster1'
+litp create -t route -p /infrastructure/networking/routes/r3 -o subnet='0.0.0.0/0' gateway='192.168.0.1'
+
+litp create -t eth -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if4 -o macaddress='00:50:56:00:00:75' ipaddress='172.16.100.2' network_name='trafficluster1' device_name='eth4'
+litp create -t eth -p /deployments/d1/clusters/c1/nodes/n2/network_interfaces/if4 -o macaddress='00:50:56:00:00:79' ipaddress='172.16.100.3' network_name='trafficluster1' device_name='eth4'
+
+litp inherit -p /deployments/d1/clusters/c1/nodes/n1/routes/r3 -s /infrastructure/networking/routes/r3
+litp inherit -p /deployments/d1/clusters/c1/nodes/n2/routes/r3 -s /infrastructure/networking/routes/r3
+
+litp create -t eth -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if5 -o macaddress='00:50:56:00:00:80' ipaddress='172.16.200.2' network_name='traffic2' device_name='eth5'
+litp create -t eth -p /deployments/d1/clusters/c1/nodes/n2/network_interfaces/if5 -o macaddress='00:50:56:00:00:89' ipaddress='172.16.200.3' network_name='traffic2' device_name='eth5'
+
+litp inherit -p /deployments/d1/clusters/c1/nodes/n1/routes/traffic2_gw -s /infrastructure/networking/routes/traffic2_gw
+litp inherit -p /deployments/d1/clusters/c1/nodes/n2/routes/traffic2_gw -s /infrastructure/networking/routes/traffic2_gw
+
+litp create_plan
+assertPlanState initial
+
+#update subnet to default gateway
+litp update -p /infrastructure/networking/routes/traffic2_gw -o subnet='0.0.0.0/0'
+
+let __err_a --err_type ValidationError --err_message 'Create plan failed: Destination subnet "0.0.0.0/0" is duplicated across several routes: /deployments/d1/clusters/c1/nodes/n1/routes/r3 /deployments/d1/clusters/c1/nodes/n1/routes/traffic2_gw' --err_vpath '/deployments/d1/clusters/c1/nodes/n1/routes'
+let __err_b --err_type ValidationError --err_message 'Create plan failed: Destination subnet "0.0.0.0/0" is duplicated across several routes: /deployments/d1/clusters/c1/nodes/n2/routes/r3 /deployments/d1/clusters/c1/nodes/n2/routes/traffic2_gw' --err_vpath '/deployments/d1/clusters/c1/nodes/n2/routes'
+
+assertError __err_a __err_b create_plan

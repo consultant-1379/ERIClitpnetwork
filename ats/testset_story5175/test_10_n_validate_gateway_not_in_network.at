@@ -1,0 +1,10 @@
+## Verify that a ValidationError is returned on create_plan if the route gateway is not reachable from the defined interfaces.
+
+runLitpScript ../custom_setup.inc
+
+litp create -p /infrastructure/networking/routes/test_route6 -t route6 -o subnet='2607:bb::/128' gateway='2030:ff::5:6'
+litp create -p /ms/network_interfaces/if_5175 -t eth -o macaddress='00:50:56:00:00:81' device_name='eth2'  ipv6address='2001:bb::1:1' network_name='traffic6_5175'
+litp create -p /infrastructure/networking/networks/test_network_5175 -t network -o name='traffic6_5175'
+litp inherit -p /ms/routes/route6 -s /infrastructure/networking/routes/test_route6
+
+assertError create_plan --err_type ValidationError --err_message 'Create plan failed: Route gateway is not reachable from any of the interfaces on node "ms1"'

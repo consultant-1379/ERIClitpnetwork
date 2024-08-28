@@ -1,0 +1,18 @@
+litp create -t system -p /infrastructure/systems/ms_system -o system_name='ms_system'
+litp inherit -p /ms/system -s /infrastructure/systems/ms_system
+
+litp create -t network -p /infrastructure/networking/networks/mgmt -o subnet='192.168.20.0/24' name='mgmt' litp_management=true
+litp create -t network -p /infrastructure/networking/networks/data -o name='data' litp_management=false
+
+litp create -t eth -p /ms/network_interfaces/nic_A -o device_name=eth0 macaddress=00:11:22:AA:BB:CC ipaddress=192.168.20.10 network_name=mgmt
+litp create -t eth -p /ms/network_interfaces/nic_B -o device_name=eth1 macaddress=00:11:22:AA:BB:CD bridge=br0
+litp create -t bridge -p /ms/network_interfaces/br0 -o device_name=br0 network_name=data
+
+litp create_plan
+litp run_plan
+
+# ADD IP to bridge
+
+litp update -p  /ms/network_interfaces/br0 -o ipv6address=2001:4860:4860::1/64
+litp create_plan
+litp run_plan

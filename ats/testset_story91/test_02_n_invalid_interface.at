@@ -1,0 +1,52 @@
+## Verify errors are thrown when all required properties are not set and/or invalid values are given when creating an eth item.
+
+runLitpScript ../custom_setup.inc
+
+#create network
+
+litp create -p /infrastructure/networking/networks/test_network91 -t network -o name='test' subnet='10.10.10.0/24'
+
+#create interface with non-existent "network_name"
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if95 -t eth -o device_name='eth95' macaddress='BB:BB:BB:BB:BB:95' ipaddress='10.10.10.95' network_name='unknown'
+assertError create_plan --err_type ValidationError --err_message 'Create plan failed: Property network_name "unknown" does not match a defined network.' --err_vpath '/deployments/d1/clusters/c1/nodes/n1/network_interfaces/if95'
+
+#create interface with ipaddress value outside of the network
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if96 -t eth -o device_name='eth96' macaddress='BB:BB:BB:BB:BB:96' ipaddress='9.9.9.9' network_name='test'
+assertError create_plan --err_type ValidationError --err_message 'Create plan failed: IP address "9.9.9.9" not within subnet "10.10.10.0/24" of network "test".' --err_vpath '/deployments/d1/clusters/c1/nodes/n1/network_interfaces/if96'
+
+#create interface with network ipaddress
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if97 -t eth -o device_name='eth97' macaddress='BB:BB:BB:BB:BB:97' ipaddress='10.10.10.0' network_name='test'
+assertError create_plan --err_type ValidationError --err_message 'Create plan failed: Cannot assign IPv4 address "10.10.10.0" to this interface as it is the network address for its network "test".' --err_vpath '/deployments/d1/clusters/c1/nodes/n1/network_interfaces/if97'
+
+#create interface with broadcast ipaddress
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if98 -t eth -o device_name='eth98' macaddress='BB:BB:BB:BB:BB:98' ipaddress='10.10.10.255' network_name='test'
+assertError create_plan --err_type ValidationError --err_message 'Create plan failed: Cannot assign IPv4 address "10.10.10.255" to this interface as it is the broadcast address for its network "test".' --err_vpath '/deployments/d1/clusters/c1/nodes/n1/network_interfaces/if98'
+
+#create two interfaces with the same 'device_name'
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if99 -t eth -o device_name='eth99' macaddress='BB:BB:BB:BB:BB:99' ipaddress='10.10.10.99' network_name='test'
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if100 -t eth -o device_name='eth99' macaddress='BB:BB:BB:BB:BB:00' ipaddress='10.10.10.100' network_name='test'
+assertError create_plan --err_type ValidationError --err_message 'Create plan failed: Interface with device_name "eth99" is not unique.' --err_vpath '/deployments/d1/clusters/c1/nodes/n1/network_interfaces/if99'
+
+#create two interfaces with the same mac address
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if101 -t eth -o device_name='eth11' macaddress='BB:BB:BB:BB:BB:01' ipaddress='10.10.10.101' network_name='test'
+litp create -p /deployments/d1/clusters/c1/nodes/n2/network_interfaces/if102 -t eth -o device_name='eth12' macaddress='BB:BB:BB:BB:BB:01' ipaddress='10.10.10.102' network_name='test'
+
+let __err_a --err_type ValidationError --err_message 'Create plan failed: MAC addresses must be unique in the deployment model.' --err_vpath '/deployments/d1/clusters/c1/nodes/n1/network_interfaces/if101'
+let __err_b --err_type ValidationError --err_message 'Create plan failed: MAC addresses must be unique in the deployment model.' --err_vpath '/deployments/d1/clusters/c1/nodes/n2/network_interfaces/if102'
+
+assertError __err_a __err_b create_plan
+
+#create two interfaces with the same 'network_name'
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if103 -t eth -o device_name='eth13' macaddress='BB:BB:BB:BB:BB:03' ipaddress='10.10.10.103' network_name='test'
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if104 -t eth -o device_name='eth14' macaddress='BB:BB:BB:BB:BB:04' ipaddress='10.10.10.105' network_name='test'
+
+let __err_a --err_type ValidationError --err_message 'Create plan failed: Network name "test" must be used by one network-interface.' --err_vpath '/deployments/d1/clusters/c1/nodes/n1/network_interfaces/if103'
+let __err_b --err_type ValidationError --err_message 'Create plan failed: Network name "test" must be used by one network-interface.' --err_vpath '/deployments/d1/clusters/c1/nodes/n1/network_interfaces/if104'
+
+assertError __err_a __err_b create_plan
+
+#create two interfaces with the same 'ipaddress'
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if105 -t eth -o device_name='eth15' macaddress='BB:BB:BB:BB:BB:05' ipaddress='10.10.10.105' network_name='test'
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if106 -t eth -o device_name='eth16' macaddress='BB:BB:BB:BB:BB:06' ipaddress='10.10.10.105' network_name='test'
+
+assertError create_plan --err_type ValidationError --err_message 'Create plan failed: IP addresses must be unique per node.' --err_vpath '/deployments/d1/clusters/c1/nodes/n1/network_interfaces/if106'

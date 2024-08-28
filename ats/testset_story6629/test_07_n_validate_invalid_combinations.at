@@ -1,0 +1,8 @@
+## Verify invalid property combinations results in a validation error
+
+runLitpScript ../custom_setup.inc
+
+#create vlan with non-existent bridge
+litp create -p /ms/network_interfaces/vlanZ -t vlan -o device_name='eth6.629' bridge='brX'
+
+assertError --err_type ValidationError --err_message 'Property bridge "brX" does not correspond to a valid bridge.' --err_vpath '/ms/network_interfaces/vlanZ' create_plan

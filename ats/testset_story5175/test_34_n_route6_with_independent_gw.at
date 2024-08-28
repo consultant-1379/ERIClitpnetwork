@@ -1,0 +1,21 @@
+## Verify creating a route where none of the nodes interfaces belong to the gateway network range results in an error at create plan
+
+runLitpScript ../custom_setup.inc
+
+litp create -p /infrastructure/networking/routes/test_new_route6 -t route6 -o subnet='3001:DB8::/64' gateway='2001:DB9::800:27FF:FE00:0'
+litp create -p /ms/network_interfaces/if_5175 -t eth -o macaddress='00:50:56:00:00:81' device_name='eth2'  ipv6address='2001:bb::1:11' network_name='traffic_5175'
+
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if_5175 -t eth -o macaddress='00:50:56:00:00:61' device_name='eth1'  ipv6address='2001:bb::1:12' network_name='traffic_5175'
+litp create -p /deployments/d1/clusters/c1/nodes/n2/network_interfaces/if_5175 -t eth -o macaddress='00:50:56:00:00:62' device_name='eth1'  ipv6address='2001:bb::1:13' network_name='traffic_5175'
+
+litp create -p /infrastructure/networking/networks/test_network_5175 -t network -o name='traffic_5175'
+
+litp inherit -p /ms/routes/test_new_route6 -s /infrastructure/networking/routes/test_new_route6
+litp inherit -p /deployments/d1/clusters/c1/nodes/n1/routes/test_new_route6 -s /infrastructure/networking/routes/test_new_route6
+litp inherit -p /deployments/d1/clusters/c1/nodes/n2/routes/test_new_route6 -s /infrastructure/networking/routes/test_new_route6
+
+let __err_a --err_type ValidationError --err_message 'Create plan failed: Route gateway is not reachable from any of the interfaces on node "node1"' --err_vpath '/deployments/d1/clusters/c1/nodes/n1/routes/test_new_route6'
+let __err_b --err_type ValidationError --err_message 'Create plan failed: Route gateway is not reachable from any of the interfaces on node "node2"' --err_vpath '/deployments/d1/clusters/c1/nodes/n2/routes/test_new_route6'
+let __err_c --err_type ValidationError --err_message 'Create plan failed: Route gateway is not reachable from any of the interfaces on node "ms1"' --err_vpath '/ms/routes/test_new_route6'
+
+assertError __err_a __err_b __err_c create_plan

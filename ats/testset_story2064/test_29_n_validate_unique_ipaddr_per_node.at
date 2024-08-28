@@ -1,0 +1,15 @@
+## Verifies that a ValidationError is returned when two eth items have the same IPv6 address.
+
+runLitpScript ../custom_setup.inc
+
+litp create -p /infrastructure/networking/networks/network_2064_1 -t network -o name='test1'
+litp create -p /infrastructure/networking/networks/network_2064_2 -t network -o name='test2'
+
+litp create_plan
+assertPlanState initial
+
+litp create -t eth -p /ms/network_interfaces/if_2064_1 -o ipv6address='::ffff:a0a:1' network_name='test1' device_name='eth5' macaddress='00:50:56:00:00:80'
+litp create -t eth -p /ms/network_interfaces/if_2064_2 -o ipv6address='::ffff:a0a:1' network_name='test2' device_name='eth6' macaddress='00:50:56:00:00:76'
+
+assertError create_plan --err_type ValidationError --err_message 'Create plan failed: IPv6 addresses must be unique per node.' --err_vpath '/ms/network_interfaces/if_2064_1'
+assertError create_plan --err_type ValidationError --err_message 'Create plan failed: IPv6 addresses must be unique per node.' --err_vpath '/ms/network_interfaces/if_2064_2'

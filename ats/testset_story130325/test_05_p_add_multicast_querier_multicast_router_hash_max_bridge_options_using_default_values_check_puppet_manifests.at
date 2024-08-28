@@ -1,0 +1,18 @@
+## To ensure that it is possible to specify, deploy, and update a bridge
+## when multicast_router, multicast_querier, and hash_max properties are not
+## present
+
+## Prerequisite - minimum LITP Deployment
+runLitpScript ../minimum_deployments.inc
+
+## 1. Create a bridge without multicast_querier, multicast_router, hash_max
+## properties.
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if1 -t bridge -o device_name=brMS_VM_bridge network_name=stream ipaddress=10.0.0.105 multicast_snooping=1
+
+## 2. Create and run plan.
+litp create_plan
+litp run_plan
+
+## 3. Ensure generated puppet manifests correctness (the default values are
+## populated).
+assertFileContents ../bridging_multicast/node1_test_05.pp /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/node1.pp

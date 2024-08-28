@@ -1,0 +1,12 @@
+## Verify creating an interface with non-existent bridge property value results in a create_plan error
+
+runLitpScript ../custom_setup.inc
+
+#create network item
+litp create -t network -p /infrastructure/networking/networks/test_network225 -o name='test' subnet='10.10.10.0/24'
+
+#create 'interface' with non-existent bridge
+litp create -t eth -p /ms/network_interfaces/if225 -o macaddress='00:50:56:00:00:81' device_name='eth2' bridge='br225'
+
+#assert create_plan ValidationError with expected message is present
+assertError create_plan --err_type ValidationError --err_message 'Property bridge "br225" does not correspond to a valid bridge' --err_vpath '/ms/network_interfaces/if225'

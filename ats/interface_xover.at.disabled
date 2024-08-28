@@ -1,0 +1,48 @@
+litp create -p /infrastructure/systems/vm1 -t system -o system_name='AT_system'
+litp create -p /infrastructure/systems/vm1/network_interfaces/nic0 -t nic -o interface_name="eth0" macaddress='DE:AD:BE:EF:13:37'
+litp create -p /infrastructure/systems/vm1/network_interfaces/nic1 -t nic -o interface_name="eth1" macaddress='DE:AD:BE:EF:13:38'
+
+litp create -p /software/profiles/rhel_6_4 -t os-profile -o name='sample-profile' path='/profiles/node-iso/'
+
+litp create -p /infrastructure/networking/routes/r1 -t route -o name=default subnet="0.0.0.0/0" gateway="10.0.0.254"
+litp create -p /infrastructure/networking/routes/r2 -t route -o name=other   subnet="0.0.0.0/0" gateway="192.168.1.254"
+litp create -p /infrastructure/networking/ip_ranges/mgmt_range -t ip-range -o network_name='AT_network' start='10.0.0.1' end='10.0.0.50' subnet='10.0.0.0/24'
+litp create -p /infrastructure/networking/ip_ranges/other_range -t ip-range -o network_name='other_network' start='192.168.1.20' end='192.168.1.50' subnet='192.168.1.0/24'
+
+# Create a network profile
+litp create -p /infrastructure/networking/network_profiles/LITPCDS-2142-2_bridges -t network-profile -o name='2_bridges_1_nic' management_network='AT_network'
+litp create -p /infrastructure/networking/network_profiles/LITPCDS-2142-2_bridges/interfaces/if0 -t interface -o interface_basename='eth0'
+litp create -p /infrastructure/networking/network_profiles/LITPCDS-2142-2_bridges/interfaces/if1 -t interface -o interface_basename='eth1'
+
+litp create -p /infrastructure/networking/network_profiles/LITPCDS-2142-2_bridges/bridges/initial_bridge -t bridge -o bridge_name='br0' interfaces='if0'
+litp create -p /infrastructure/networking/network_profiles/LITPCDS-2142-2_bridges/networks/mgmt_net -t network-old -o network_name='AT_network' bridge='initial_bridge'
+litp create -p /infrastructure/networking/network_profiles/LITPCDS-2142-2_bridges/networks/other_net -t network-old -o network_name='other_network' interface='if0'
+
+litp create -p /infrastructure/storage/storage_profiles/profile_1 -t storage-profile-base -o storage_profile_name=sp1
+
+litp create -p /deployments/LITPCDS-2142 -t deployment
+litp create -p /deployments/LITPCDS-2142/clusters/cluster1 -t cluster
+litp create -p /deployments/LITPCDS-2142/clusters/cluster1/nodes/node1 -t node -o hostname='node1'
+litp link -p /deployments/LITPCDS-2142/clusters/cluster1/nodes/node1/network_profile -t network-profile -o name='2_bridges_1_nic'
+# Extra linking to satisfy model requirements
+litp link -p /deployments/LITPCDS-2142/clusters/cluster1/nodes/node1/system -t system -o system_name='AT_system'
+litp link -p /deployments/LITPCDS-2142/clusters/cluster1/nodes/node1/os -t os-profile -o name='sample-profile'
+litp link -p /deployments/LITPCDS-2142/clusters/cluster1/nodes/node1/storage_profile -t storage-profile-base -o storage_profile_name='sp1'
+litp link -p /deployments/LITPCDS-2142/clusters/cluster1/nodes/node1/ipaddresses/ip1 -t ip-range -o network_name='AT_network'
+litp link -p /deployments/LITPCDS-2142/clusters/cluster1/nodes/node1/ipaddresses/ip2 -t ip-range -o network_name='other_network'
+
+litp link -p /deployments/LITPCDS-2142/clusters/cluster1/nodes/node1/routes/r1 -t route -o name=default
+
+assertError create_plan
+
+litp update -p /infrastructure/networking/network_profiles/LITPCDS-2142-2_bridges/networks/other_net -o interface='if1'
+litp create_plan
+
+litp create -p /infrastructure/networking/network_profiles/LITPCDS-2142-2_bridges/bridges/additional_bridge -t bridge -o bridge_name='br1' interfaces='if0'
+litp create -p /infrastructure/networking/network_profiles/LITPCDS-2142-2_bridges/networks/additional_net -t network-old -o network_name='foo' bridge='additional_bridge'
+assertError create_plan
+
+litp remove -p /infrastructure/networking/network_profiles/LITPCDS-2142-2_bridges/networks/other_net
+litp update -p /infrastructure/networking/network_profiles/LITPCDS-2142-2_bridges/bridges/additional_bridge -o interfaces='if1'
+
+litp create_plan

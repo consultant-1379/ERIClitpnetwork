@@ -1,0 +1,34 @@
+litp create -p /software/profiles/rhel_6_4 -t os-profile -o name='sample-profile' path='/profiles/node-iso/'
+litp create -p /infrastructure/networking/routes/r1 -t route -o name=default subnet="0.0.0.0/0" gateway="10.0.0.1"
+
+litp create -p /infrastructure/systems/vm1 -t system -o system_name='MN1VM'
+
+litp create -p /infrastructure/networking/networks/mgmt_range -t network -o name='mgmt_network' subnet='10.0.0.0/24' litp_management='true'
+
+litp create -p /infrastructure/storage/storage_profiles/profile_1 -t storage-profile-base -o storage_profile_name=sp1
+
+
+litp create -p /ms/net_interfaces/nic0 -t eth -o device_name="eth0" macaddress='DE:AD:BE:EF:13:39' ipaddress='10.0.0.1' network_name='mgmt_network'
+litp create -p /ms/net_interfaces/nic1 -t eth -o device_name="eth1" macaddress='DE:AD:BE:EF:13:3A'
+
+litp create -p /infrastructure/systems/ms1 -t system -o system_name='MS'
+litp link -p /ms/system -t system -o system_name='MS'
+
+litp link -p /ms/routes/defroute -t route -o name=default
+
+litp create -p /deployments/single_blade_vms -t deployment
+litp create -p /deployments/single_blade_vms/clusters/cluster1 -t cluster
+litp create -p /deployments/single_blade_vms/clusters/cluster1/nodes/node1 -t node -o hostname='node1'
+litp link -p /deployments/single_blade_vms/clusters/cluster1/nodes/node1/system -t system -o system_name='MN1VM'
+litp link -p /deployments/single_blade_vms/clusters/cluster1/nodes/node1/os -t os-profile -o name='sample-profile'
+
+litp create -p /deployments/single_blade_vms/clusters/cluster1/nodes/node1/net_interfaces/inode_bridged_if -t eth -o device_name='eth0' network_name='mgmt_network' macaddress='DE:AD:BE:EF:13:37' bridge='br0'
+# STP will default to off
+litp create -p /deployments/single_blade_vms/clusters/cluster1/nodes/node1/net_interfaces/phys_2_vm -t bridge -o device_name='br0' network_name='mgmt_network' ipaddress='10.0.0.2' 
+
+litp link -p /deployments/single_blade_vms/clusters/cluster1/nodes/node1/storage_profile -t storage-profile-base -o storage_profile_name='sp1'
+litp link -p /deployments/single_blade_vms/clusters/cluster1/nodes/node1/routes/r1 -t route -o name=default
+
+litp create_plan
+litp run_plan
+assertFileContents bridging_IP_from_range/node1.pp /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/node1.pp

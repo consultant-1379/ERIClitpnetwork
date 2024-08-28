@@ -1,0 +1,16 @@
+## Verify creating a bond item with no ipaddress property results in an error at create plan
+
+runLitpScript ../custom_setup.inc
+
+#create network item
+litp create -p /infrastructure/networking/networks/test_network2069 -t network -o name='test1' subnet='10.10.10.0/24'
+
+#create bond with no ipaddress
+litp create -p /ms/network_interfaces/b_2069 -t bond -o device_name='bond2069' network_name='test1' mode='1' miimon='100'
+
+#assert create_plan ValidationError with expected message is present
+
+let __err_a --err_type ValidationError --err_message 'Create plan failed: This interface does not define an IPv4 address. It is tied to a network (test1) with a subnet defined.' --err_vpath "/ms/network_interfaces/b_2069"
+let __err_b --err_type ValidationError --err_message 'Create plan failed: Bond "bond2069" is not a master for any "eth" devices' --err_vpath '/ms/network_interfaces/b_2069'
+
+assertError __err_a __err_b create_plan

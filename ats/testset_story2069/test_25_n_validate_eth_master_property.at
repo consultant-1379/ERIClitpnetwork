@@ -1,0 +1,27 @@
+## Validates the 'master' property on the eth item.
+
+litp create -p /infrastructure/networking/networks/test_network2069 -t network -o name='test1' subnet='10.10.10.0/24' litp_management='true'
+litp create -p /ms/network_interfaces/if_2069 -t eth -o macaddress='00:50:56:00:00:81' device_name='eth2' master='bond2069'
+litp create -p /ms/network_interfaces/b_2069 -t bond -o device_name='bond2069' ipaddress='10.10.10.1' network_name='test1' mode='1' miimon='100'
+
+litp create_plan
+assertPlanState initial
+
+litp run_plan
+assertPlanState successful
+
+assertState -p /infrastructure/networking/networks/test_network2069 Applied
+assertState -p /ms/network_interfaces/if_2069 Applied
+assertState -p /ms/network_interfaces/b_2069 Applied
+
+assertError --err_type "ValidationError" --err_message "Invalid value 'bondZZ'. Value must be a valid Bond device name" create -p /ms/network_interfaces/if_2070 -t eth -o macaddress='00:50:56:00:00:81' device_name='eth2' master='bondZZ'
+
+litp create -p /ms/network_interfaces/if_2071 -t eth -o macaddress='00:50:56:00:00:81' device_name='eth2' master='bondzz'
+assertState -p /ms/network_interfaces/if_2071 Initial
+
+let __err_a --err_type ValidationError --err_message "Create plan failed: MAC addresses must be unique in the deployment model." --err_vpath "/ms/network_interfaces/if_2069"
+let __err_b --err_type ValidationError --err_message "Create plan failed: MAC addresses must be unique in the deployment model." --err_vpath "/ms/network_interfaces/if_2071"
+let __err_c --err_type ValidationError --err_message 'Create plan failed: Interface with device_name "eth2" is not unique.' --err_vpath "/ms/network_interfaces/if_2069"
+let __err_d --err_type ValidationError --err_message 'Create plan failed: eth "master" "bondzz" is not a valid Bond "device_name"' --err_vpath "/ms/network_interfaces/if_2071"
+
+assertError __err_a __err_b __err_c __err_d create_plan

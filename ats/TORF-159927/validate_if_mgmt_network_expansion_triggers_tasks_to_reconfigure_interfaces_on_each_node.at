@@ -1,0 +1,68 @@
+##############
+# This AT is for development testing
+#
+# Goal: check if a task is created for each node to redefine network-interface
+#       configuration once a *management* network subnet is expanded.
+#
+# Comment: Being a network expansion that embraces the current configured
+#       network interfaces addresses, the resulted tasks should only update the
+#       netmask and broadcast address.
+#
+# Scenario:
+#       mgmt network: 10.10.10.0/24
+#       N1..: 10.10.10.3 (if0)
+#       N2..: 10.10.10.4 (if0)
+#       MS..: 10.10.10.5 (if0)
+#
+# Actions:
+#       Expand mgmt network to 10.10.10.0/23
+#
+
+####
+# Bulding the scenario
+#
+assertNoPlan
+runLitpScript basic_scenario.atlib
+assertPlanState successful
+
+####
+# Actions
+#
+litp update -p /infrastructure/networking/networks/mgmt -o subnet=10.10.10.0/23
+litp create_plan
+
+####
+# Pre-run Checks
+#
+assertConfigTask ms1 litpnetwork::config eth0 /ms/network_interfaces/if0 nozeroconf='yes' userctl='no' is_mgmt_if='true' ipaddr='10.10.10.5' broadcast='10.10.11.255' netmask='255.255.254.0' bootproto='static' ensure='present' hwaddr='00:00:00:00:00:01' onboot='yes'
+
+assertConfigTask node1 litpnetwork::config eth0 /deployments/at/clusters/c1/nodes/n1/network_interfaces/if0 nozeroconf='yes' userctl='no' is_mgmt_if='true' ipaddr='10.10.10.3' broadcast='10.10.11.255' netmask='255.255.254.0' bootproto='static' ensure='present' hwaddr='00:00:00:00:01:01' onboot='yes'
+
+assertConfigTask node2 litpnetwork::config eth0 /deployments/at/clusters/c1/nodes/n2/network_interfaces/if0 nozeroconf='yes' userctl='no' is_mgmt_if='true' ipaddr='10.10.10.4' broadcast='10.10.11.255' netmask='255.255.254.0' bootproto='static' ensure='present' hwaddr='00:00:00:00:02:01' onboot='yes'
+
+####
+# Run plan
+#
+litp run_plan
+
+####
+# Post-run Checks
+#
+assertPlanState successful
+
+# mgmt network
+assertProperty /infrastructure/networking/networks/mgmt -o subnet=10.10.10.0/23
+assertState -p /infrastructure/networking/networks/mgmt Applied
+
+# N1
+assertProperty /deployments/at/clusters/c1/nodes/n1/network_interfaces/if0 -o ipaddress=10.10.10.3
+assertState -p /deployments/at/clusters/c1/nodes/n1/network_interfaces/if0 Applied
+
+# N2
+assertProperty /deployments/at/clusters/c1/nodes/n2/network_interfaces/if0 -o ipaddress=10.10.10.4
+assertState -p /deployments/at/clusters/c1/nodes/n2/network_interfaces/if0 Applied
+
+# MS
+assertProperty /ms/network_interfaces/if0 -o ipaddress=10.10.10.5
+assertState -p /ms/network_interfaces/if0 Applied
+

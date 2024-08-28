@@ -1,0 +1,48 @@
+litp create -p /infrastructure/systems/vm1 -t system -o system_name='MN1VM'
+litp create -p /infrastructure/systems/vm1/network_interfaces/nic0 -t nic -o interface_name="eth0" macaddress='DE:AD:BE:EF:13:37'
+
+litp create -p /infrastructure/systems/ms1 -t system -o system_name='MS'
+litp create -p /infrastructure/systems/ms1/network_interfaces/nic0 -t nic -o interface_name="eth1" macaddress='DE:AD:BE:EF:66:99'
+
+litp create -p /infrastructure/networking/routes/r1 -t route -o name=default subnet="0.0.0.0/0" gateway="10.0.0.254"
+
+litp create -p /infrastructure/networking/ip_ranges/mgmt_range -t ip-range -o network_name='mgmt_network' start='10.0.0.1' end='10.0.0.50' subnet='10.0.0.0/24'
+
+litp create -p /infrastructure/networking/network_profiles/ms_net_profile -t network-profile -o name='single_blade_bridging_ms' management_network='mgmt_network'
+litp create -p /infrastructure/networking/network_profiles/ms_net_profile/interfaces/ms_bridged_if -t interface -o interface_basename='eth1'
+litp create -p /infrastructure/networking/network_profiles/ms_net_profile/bridges/phys_2_vm -t bridge -o bridge_name='brMS_VM_bridge' interfaces='ms_bridged_if'
+litp create -p /infrastructure/networking/network_profiles/ms_net_profile/networks/mgmt_net -t network-old -o network_name='mgmt_network' bridge='phys_2_vm'
+
+
+litp create -p /infrastructure/networking/network_profiles/vm_net_profile -t network-profile -o name='single_blade_bridging' management_network='mgmt_network'
+litp create -p /infrastructure/networking/network_profiles/vm_net_profile/interfaces/node_bridged_if -t interface -o interface_basename='eth0'
+litp create -p /infrastructure/networking/network_profiles/vm_net_profile/bridges/phys_2_vm -t bridge -o bridge_name='brMS_VM_bridge' interfaces='node_bridged_if'
+litp create -p /infrastructure/networking/network_profiles/vm_net_profile/networks/mgmt_net -t network-old -o network_name='mgmt_network' bridge='phys_2_vm'
+
+litp create -p /infrastructure/storage/storage_profiles/profile_1 -t storage-profile-base -o storage_profile_name=sp1
+
+litp create -p /software/profiles/rhel_6_4 -t os-profile -o name='sample-profile' path='/profiles/node-iso/'
+
+litp create -p /deployments/single_blade_vms -t deployment
+litp create -p /deployments/single_blade_vms/clusters/cluster1 -t cluster
+litp create -p /deployments/single_blade_vms/clusters/cluster1/nodes/node1 -t node -o hostname='node1'
+litp link -p /deployments/single_blade_vms/clusters/cluster1/nodes/node1/system -t system -o system_name='MN1VM'
+litp link -p /deployments/single_blade_vms/clusters/cluster1/nodes/node1/os -t os-profile -o name='sample-profile'
+litp link -p /deployments/single_blade_vms/clusters/cluster1/nodes/node1/ipaddresses/ip1 -t ip-range -o network_name='mgmt_network' address='10.0.0.43'
+litp link -p /deployments/single_blade_vms/clusters/cluster1/nodes/node1/network_profile -t network-profile -o name='single_blade_bridging'
+litp link -p /deployments/single_blade_vms/clusters/cluster1/nodes/node1/routes/r1 -t route -o name=default
+
+assertLink /deployments/single_blade_vms/clusters/cluster1/nodes/node1/network_profile /infrastructure/networking/network_profiles/vm_net_profile
+
+litp link -p /deployments/single_blade_vms/clusters/cluster1/nodes/node1/storage_profile -t storage-profile-base -o storage_profile_name='sp1'
+
+litp link -p /ms/ipaddresses/ip1 -t ip-range -o network_name='mgmt_network' address='10.0.0.1'
+litp link -p /ms/system -t system -o system_name='MS'
+litp link -p /ms/network_profile -t network-profile -o name='single_blade_bridging_ms'
+litp link -t route -p /ms/routes/def -o name=default
+
+litp create_plan
+# show show_plan
+litp run_plan
+assertFileContents bridging_arbitrary_IP/node1.pp /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/node1.pp
+assertFileContents bridging_arbitrary_IP/ms1.pp /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/ms1.pp

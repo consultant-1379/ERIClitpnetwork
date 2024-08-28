@@ -1,0 +1,39 @@
+# LITPCDS-7422
+# A route with subnet included in any local network is not allowed.
+
+litp create -t system -p /infrastructure/systems/ms_system -o system_name='ms_system'
+litp inherit -p /ms/system -s /infrastructure/systems/ms_system
+
+##################################################################################################################################################
+# IPV4 Scenario.
+##################################################################################################################################################
+
+litp create -t network -p /infrastructure/networking/networks/faa -o name='faa' subnet='192.168.1.128/26' litp_management=true
+litp create -t network -p /infrastructure/networking/networks/fee -o name='fee' subnet='192.168.1.0/26' litp_management=false
+
+litp create -t eth -p /ms/network_interfaces/nic_A -o network_name=faa ipaddress=192.168.1.129 device_name=eth0 macaddress=00:11:22:AA:BB:AA
+litp create -t eth -p /ms/network_interfaces/nic_B -o network_name=fee ipaddress=192.168.1.10 device_name=eth1 macaddress=00:11:22:AA:BB:BB
+
+# This is the offending route, as it is already reachable through eth0
+
+litp create -t route -p /infrastructure/networking/routes/routeA -o subnet=192.168.1.128/26 gateway=192.168.1.1
+litp inherit -p /ms/routes/routeA -s /infrastructure/networking/routes/routeA
+
+##################################################################################################################################################
+# IPV6 Scenario
+##################################################################################################################################################
+
+litp create -t network -p /infrastructure/networking/networks/fii -o name='fii'
+litp create -t network -p /infrastructure/networking/networks/foo -o name='foo'
+
+litp create -t eth -p /ms/network_interfaces/nic_C -o network_name=fii ipv6address=2001:5555::10/64 device_name=eth2 macaddress=33:44:55:DD:EE:FF
+litp create -t eth -p /ms/network_interfaces/nic_D -o network_name=foo ipv6address=2001:6666::10/64 device_name=eth3 macaddress=33:44:55:DD:EE:DD
+
+# This is the offending route, as it is already reachable through eth2
+
+litp create -t route6 -p /infrastructure/networking/routes/routeB -o subnet=2001:5555::0/64 gateway=2001:6666::1
+litp inherit -p /ms/routes/routeB -s /infrastructure/networking/routes/routeB
+
+assertError create_plan
+
+

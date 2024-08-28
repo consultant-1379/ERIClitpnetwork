@@ -1,0 +1,5 @@
+# Networks connected to our cluster
+litp create -p /infrastructure/networking/networks/mgmt     -t network  -o name='mgmt' subnet='10.82.23.136/26' litp_management=true
+litp create -p /infrastructure/networking/networks/jbint    -t network  -o name='jboss_internal' subnet='192.168.100.0/24'
+litp create -t network -p /infrastructure/networking/networks/storage1  -o name='storage2016' subnet='10.59.134.0/23'
+litp create -p /infrastructure/networking/networks/backup1  -t network  -o name='backup2017' subnet='10.224.10.0/23'

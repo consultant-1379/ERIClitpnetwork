@@ -1,0 +1,15 @@
+litp create -t os-profile -p /software/profiles/rhel_6 -o name='sample-profile' path='/var/www/html/6/os/x86_64/'
+
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+
+litp create -t route -p /infrastructure/networking/routes/default -o subnet="0.0.0.0/0" gateway="10.4.23.1"
+litp create -t network -p /infrastructure/networking/networks/river -o name=river subnet="10.4.23.0/24" litp_management=true
+
+litp inherit -p /ms/routes/default -s /infrastructure/networking/routes/default
+
+litp create -t eth -p /ms/network_interfaces/eth0   -o device_name=eth0 macaddress=08:00:27:24:8f:27 master=bond0
+litp create -t eth -p /ms/network_interfaces/eth1   -o device_name=eth1 macaddress=08:00:27:24:8f:21 master=bond0
+litp create -t bond -p /ms/network_interfaces/bond0 -o device_name=bond0  network_name=river ipaddress=10.4.23.50
+
+litp create_plan
+litp run_plan

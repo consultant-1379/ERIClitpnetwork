@@ -1,0 +1,68 @@
+# Creating 2 different network-profiles and assuring that proper conf is created
+
+addMockDirectory /opt/ericsson/nms/litp/etc/puppet/manifests run_plan_multinetworks
+
+litp create -p /infrastructure/networking/routes/r1 -t route -o name=default subnet="0.0.0.0/0" gateway="10.10.10.1"
+
+litp create -p /infrastructure/networking/ip_ranges/ms_network -t ip-range -o network_name='nodes' start='10.10.10.100' end='10.10.10.110' subnet='10.10.10.0/24'
+litp create -p /infrastructure/networking/ip_ranges/bckp1 -t ip-range -o network_name='bckp1' start='10.10.20.100' end='10.10.20.110' subnet='10.10.20.0/24'
+litp create -p /infrastructure/networking/ip_ranges/network2 -t ip-range -o network_name='node2' start='10.10.11.100' end='10.10.11.110' subnet='10.10.11.0/24'
+
+litp create -p /infrastructure/networking/network_profiles/nodes -t network-profile -o name='nodes' management_network='nodes'
+litp create -p /infrastructure/networking/network_profiles/nodes/networks/mynetwork -t network-old -o interface='mynic0' network_name='nodes'
+# Since we only have eth0 and eth2, the latter will be used by network 'node2'
+litp create -p /infrastructure/networking/network_profiles/nodes/networks/bckp1 -t network-old -o interface='nic1' network_name='bckp1'
+litp create -p /infrastructure/networking/network_profiles/nodes/interfaces/mynic0 -t interface -o interface_basename='eth0'
+litp create -p /infrastructure/networking/network_profiles/nodes/interfaces/nic1 -t interface -o interface_basename='eth2'
+
+litp create -p /software/profiles/osprofile1 -t os-profile -o name="node-iso" path="/cobbler/ks_mirror/node-iso-x86_64"
+
+litp create -p /infrastructure/networking/network_profiles/node2 -t network-profile -o name='node2' management_network='nodes'
+litp create -p /infrastructure/networking/network_profiles/node2/networks/mynetA -t network-old -o interface='mynic1' network_name='nodes'
+litp create -p /infrastructure/networking/network_profiles/node2/networks/mynetB -t network-old -o interface='mynic2' network_name='node2'
+litp create -p /infrastructure/networking/network_profiles/node2/interfaces/mynic1 -t interface -o interface_basename='eth3'
+litp create -p /infrastructure/networking/network_profiles/node2/interfaces/mynic2 -t interface -o interface_basename='eth4'
+
+litp create -p /infrastructure/systems/system1 -t system -o system_name='MN1VM'
+litp create -p /infrastructure/systems/system1/network_interfaces/nic_0 -t nic -o interface_name='eth0' macaddress='08:00:27:24:8f:27'
+litp create -p /infrastructure/systems/system1/network_interfaces/nic_1 -t nic -o interface_name='eth2' macaddress='08:00:27:43:B8:FC'
+
+litp create -p /infrastructure/systems/system2 -t system -o system_name='MN2VM'
+litp create -p /infrastructure/systems/system2/network_interfaces/nic_1 -t nic -o interface_name='eth3' macaddress='08:00:27:24:8f:28'
+litp create -p /infrastructure/systems/system2/network_interfaces/nic_2 -t nic -o interface_name='eth4' macaddress='08:00:27:24:8f:29'
+
+litp create -p /infrastructure/storage/storage_profiles/profile_1 -t storage-profile-base -o storage_profile_name=sp1
+
+litp create -p /deployments/local_vm -t deployment
+litp create -p /deployments/local_vm/clusters/cluster1 -t cluster
+
+litp create -p /deployments/local_vm/clusters/cluster1/nodes/node1 -t node -o hostname='node1'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/system -t system -o system_name='MN1VM'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_profile -t network-profile -o name='nodes'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/ipaddresses/ip0 -t ip-range -o network_name='nodes' address='10.10.10.105'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/ipaddresses/ip1 -t ip-range -o network_name='bckp1' address='10.10.20.106'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/ipaddresses/ip2 -t ip-range -o network_name='node2'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/os -t os-profile -o name='node-iso'
+
+litp create -p /deployments/local_vm/clusters/cluster1/nodes/node2 -t node -o hostname='node2'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node2/system -t system -o system_name='MN2VM'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node2/network_profile -t network-profile -o name='node2'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node2/ipaddresses/ip1 -t ip-range -o network_name='nodes' address='10.10.10.107'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node2/ipaddresses/ip2 -t ip-range -o network_name='node2' address='10.10.11.107'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node2/os -t os-profile -o name='node-iso'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/storage_profile -t storage-profile-base -o storage_profile_name='sp1'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node2/storage_profile -t storage-profile-base -o storage_profile_name='sp1'
+
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/routes/r1 -t route -o name=default
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node2/routes/r1 -t route -o name=default
+
+
+litp create_plan
+assertTask 0 'litpnetwork::config' node1 /deployments/local_vm/clusters/cluster1/nodes/node1/network_profile
+assertTask 0 'litpnetwork::config' node2 /deployments/local_vm/clusters/cluster1/nodes/node2/network_profile
+litp run_plan
+
+assertDirectoryContents run_plan_multinetworks/ /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/
+assertState -p /infrastructure/networking/network_profiles/nodes Applied
+# FIXME This is wrong!
+assertQueryState /deployments/local_vm/clusters/cluster1/nodes/node1 network_profile Applied

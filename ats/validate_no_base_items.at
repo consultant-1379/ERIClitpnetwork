@@ -1,0 +1,33 @@
+litp create -t os-profile -p /software/profiles/rhel_6 -o name='sample-profile' path='/profiles/node-iso/'
+litp create -t system -p /infrastructure/systems/system1 -o system_name='MN1VM'
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+litp create -t route -p /infrastructure/networking/routes/r1 -o subnet="0.0.0.0/0" gateway="10.10.10.1"
+
+litp create -t deployment -p /deployments/local_vm
+litp create -t cluster -p /deployments/local_vm/clusters/cluster1
+litp create -t node -p /deployments/local_vm/clusters/cluster1/nodes/node1 -o hostname='node1'
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/system -s /infrastructure/systems/system1
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/os -s /software/profiles/rhel_6
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/storage_profile -s /infrastructure/storage/storage_profiles/profile_1
+
+litp create -p /infrastructure/networking/networks/nodes     -t network -o subnet='10.10.10.0/24' name=nodes litp_management=true
+
+litp create -t eth -p /ms/network_interfaces/if0 -o device_name=eth0 macaddress=00:00:00:00:00:03
+litp create -t vlan -p /ms/network_interfaces/vlan123 -o device_name=eth0.123 network_name=nodes ipaddress=10.10.10.4
+
+litp create -t eth -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/if0 -o network_name=nodes ipaddress=10.10.10.3 device_name=eth0 macaddress=00:00:00:00:00:01
+
+
+#Create a base type
+litp create -t network-interface -p /ms/network_interfaces/eth1
+let __err_1 --err_type ValidationError --err_message 'The interface type "network-interface" is not allowed. Allowed interface types are eth or bridge or vlan or bond'
+assertError __err_1 create_plan
+#assertError create_plan
+
+let __err_2 --err_type ValidationError --err_message 'Base item type "route-base" is not allowed'
+
+litp create -t route-base -p /infrastructure/networking/routes/abcd
+litp inherit -p /ms/routes/routeabcd -s /infrastructure/networking/routes/abcd
+
+assertError __err_1 __err_2 create_plan
+

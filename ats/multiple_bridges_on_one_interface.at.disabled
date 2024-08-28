@@ -1,0 +1,55 @@
+litp create -p /infrastructure/systems/vm1 -t system -o system_name='AT_system'
+litp create -p /infrastructure/systems/vm1/network_interfaces/nic0 -t nic -o interface_name="eth0" macaddress='DE:AD:BE:EF:13:37'
+
+litp create -p /software/profiles/rhel_6_4 -t os-profile -o name='sample-profile' path='/profiles/node-iso/'
+
+litp create -p /infrastructure/networking/routes/r1 -t route -o name=default subnet="0.0.0.0/0" gateway="10.0.0.254"
+litp create -p /infrastructure/networking/ip_ranges/mgmt_range -t ip-range -o network_name='AT_network' start='10.0.0.1' end='10.0.0.50' subnet='10.0.0.0/24'
+
+# Create a network profile
+litp create -p /infrastructure/networking/network_profiles/LITPCDS-2043-2_bridges -t network-profile -o name='2_bridges_1_nic' management_network='AT_network'
+litp create -p /infrastructure/networking/network_profiles/LITPCDS-2043-2_bridges/interfaces/node_bridged_if -t interface -o interface_basename='eth0'
+litp create -p /infrastructure/networking/network_profiles/LITPCDS-2043-2_bridges/bridges/initial_bridge -t bridge -o bridge_name='br0' interfaces='node_bridged_if'
+litp create -p /infrastructure/networking/network_profiles/LITPCDS-2043-2_bridges/networks/mgmt_net -t network-old -o network_name='AT_network' bridge='initial_bridge'
+
+litp create -p /infrastructure/storage/storage_profiles/profile_1 -t storage-profile-base -o storage_profile_name=sp1
+
+litp create -p /deployments/LITPCDS-2043 -t deployment
+litp create -p /deployments/LITPCDS-2043/clusters/cluster1 -t cluster
+litp create -p /deployments/LITPCDS-2043/clusters/cluster1/nodes/node1 -t node -o hostname='node1'
+litp link -p /deployments/LITPCDS-2043/clusters/cluster1/nodes/node1/network_profile -t network-profile -o name='2_bridges_1_nic'
+# Extra linking to satisfy model requirements
+litp link -p /deployments/LITPCDS-2043/clusters/cluster1/nodes/node1/system -t system -o system_name='AT_system'
+litp link -p /deployments/LITPCDS-2043/clusters/cluster1/nodes/node1/os -t os-profile -o name='sample-profile'
+litp link -p /deployments/LITPCDS-2043/clusters/cluster1/nodes/node1/storage_profile -t storage-profile-base -o storage_profile_name='sp1'
+litp link -p /deployments/LITPCDS-2043/clusters/cluster1/nodes/node1/ipaddresses/ip1 -t ip-range -o network_name='AT_network'
+litp link -p /deployments/LITPCDS-2043/clusters/cluster1/nodes/node1/routes/r1 -t route -o name=default
+
+assertQueryState /deployments/LITPCDS-2043/clusters/cluster1/nodes/node1 network_profile/bridges/initial_bridge Initial
+assertQueryState /deployments/LITPCDS-2043/clusters/cluster1/nodes/node1 network_profile/interfaces/node_bridged_if Initial
+litp create_plan
+litp run_plan
+
+
+assertQueryState /deployments/LITPCDS-2043/clusters/cluster1/nodes/node1 network_profile/bridges/initial_bridge Applied
+assertQueryState /deployments/LITPCDS-2043/clusters/cluster1/nodes/node1 network_profile/interfaces/node_bridged_if Applied
+
+# Add a bridge to the network profile
+litp create -p /infrastructure/networking/network_profiles/LITPCDS-2043-2_bridges/bridges/additional_bridge -t bridge -o stp='on' bridge_name='br1' interfaces='node_bridged_if'
+
+litp create -p /infrastructure/networking/network_profiles/LITPCDS-2043-2_bridges/networks/additional_network  -t network-old   -o network_name='data' bridge='additional_bridge'
+
+assertQueryState /deployments/LITPCDS-2043/clusters/cluster1/nodes/node1 network_profile/bridges/additional_bridge Initial
+
+# There is overlap between the interfaces bridged by initial_bridge and additional_bridge
+assertError create_plan
+
+litp remove -p /infrastructure/networking/network_profiles/LITPCDS-2043-2_bridges/bridges/initial_bridge
+
+assertQueryState /deployments/LITPCDS-2043/clusters/cluster1/nodes/node1 network_profile/bridges/additional_bridge  Initial
+assertQueryState /deployments/LITPCDS-2043/clusters/cluster1/nodes/node1 network_profile/bridges/initial_bridge ForRemoval
+
+litp create_plan
+litp run_plan
+
+assertQueryState /deployments/LITPCDS-2043/clusters/cluster1/nodes/node1 network_profile/bridges/additional_bridge Applied

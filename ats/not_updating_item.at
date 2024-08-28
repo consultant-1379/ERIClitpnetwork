@@ -1,0 +1,32 @@
+litp create -t os-profile -p /software/profiles/rhel_6_2 -o name='sample-profile' path='/profiles/node-iso/'
+
+litp create -t route -p /infrastructure/networking/routes/r1 -o subnet="0.0.0.0/0" gateway="10.10.10.1"
+
+litp create -t network -p /infrastructure/networking/networks/mynetwork -o name='nodes' subnet='10.10.10.0/24' litp_management=true
+
+litp create -t system -p /infrastructure/systems/system1 -o system_name='MN1VM'
+
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+
+
+litp create -t deployment -p /deployments/local_vm
+litp create -t cluster -p /deployments/local_vm/clusters/cluster1
+
+# we must have at least one node
+litp create -t node -p /deployments/local_vm/clusters/cluster1/nodes/node1 -o hostname='node1'
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/system -s /infrastructure/systems/system1
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/os -s /software/profiles/rhel_6_2
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/storage_profile -s /infrastructure/storage/storage_profiles/profile_1
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/routes/r1 -s /infrastructure/networking/routes/r1
+
+litp create -t eth -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/mynic0 -o device_name=eth0 network_name='nodes' macaddress='08:00:27:24:8f:27' ipaddress=10.10.10.101
+
+litp inherit -p /ms/routes/default -s /infrastructure/networking/routes/r1
+litp create -t eth -p /ms/network_interfaces/eth0 -o device_name=eth0 network_name=nodes macaddress=11:22:33:44:55:66 ipaddress=10.10.10.100
+
+litp create_plan
+litp run_plan
+
+# update some stuff
+litp update -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/mynic0 -o ipaddress='10.10.10.106'
+assertState -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/mynic0 Updated

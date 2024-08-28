@@ -1,0 +1,75 @@
+# LITPCDS-13084
+
+# Inconsistent behaviour between MS and MN when setting MAC on bond slave eth
+
+litp create -t os-profile -p /software/profiles/p0 -o name=sample-profile path=/var/www/html/6.4/os/x86_64/
+
+litp create -t system -p /infrastructure/systems/s1 -o system_name=MN1
+litp create -t disk   -p /infrastructure/systems/s1/disks/d0 -o name=hd0 size=28G bootable=true uuid=SATA_VBOX_HARDDISK_VB00001
+
+litp create -t system -p /infrastructure/systems/s2 -o system_name=MN2
+litp create -t disk   -p /infrastructure/systems/s2/disks/d0 -o name=hd0 size=28G bootable=true uuid=SATA_VBOX_HARDDISK_VB00002
+
+litp create -t route   -p /infrastructure/networking/routes/r0 -o subnet=0.0.0.0/0 gateway=10.10.10.1
+litp create -t network -p /infrastructure/networking/networks/n0 -o name=mgmt subnet=10.10.10.0/24 litp_management=true
+litp create -t network -p /infrastructure/networking/networks/n1 -o name=data subnet=20.20.20.0/24 litp_management=false
+
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/sp1
+
+litp create -t eth  -p /ms/network_interfaces/n0 -o network_name=mgmt ipaddress=10.10.10.100 device_name=eth0 macaddress=08:00:27:5B:C1:63
+litp create -t eth  -p /ms/network_interfaces/n1 -o device_name=eth1 macaddress=08:00:27:5B:C1:64 master=bond0
+litp create -t eth  -p /ms/network_interfaces/n2 -o device_name=eth2 macaddress=08:00:27:5B:C1:74 master=bond0
+litp create -t bond -p /ms/network_interfaces/n3 -o network_name=data device_name=bond0 network_name=data ipaddress=20.20.20.100
+
+litp inherit -p /ms/routes/default -s /infrastructure/networking/routes/r0
+
+litp create -t deployment -p /deployments/d1
+litp create -t cluster -p /deployments/d1/clusters/c1
+
+litp create -t node -p /deployments/d1/clusters/c1/nodes/n1 -o hostname=mn1
+litp inherit -p /deployments/d1/clusters/c1/nodes/n1/system -s /infrastructure/systems/s1
+litp inherit -p /deployments/d1/clusters/c1/nodes/n1/os -s /software/profiles/p0
+litp inherit -p /deployments/d1/clusters/c1/nodes/n1/storage_profile -s /infrastructure/storage/storage_profiles/sp1
+litp inherit -p /deployments/d1/clusters/c1/nodes/n1/routes/r0 -s /infrastructure/networking/routes/r0
+litp create -t eth -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/n0 -o device_name=eth0 macaddress=08:00:27:5B:C1:3F ipaddress=10.10.10.101 network_name=mgmt
+litp create -t eth -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/n1 -o device_name=eth1 macaddress=08:00:27:5B:C1:4F master=bond0
+litp create -t eth -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/n2 -o device_name=eth2 macaddress=08:00:27:5B:C1:7F master=bond0
+litp create -t bond -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/n3 -o device_name=bond0 ipaddress=20.20.20.101 network_name=data
+
+litp create_plan
+litp run_plan
+
+assertState -p /ms Applied
+assertState -p /ms/network_interfaces/n1 Applied
+assertProperty /ms/network_interfaces/n1 -o macaddress=08:00:27:5B:C1:64
+
+assertState -p /deployments/d1/clusters/c1/nodes/n1 Applied
+assertState -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/n1 Applied
+assertProperty /deployments/d1/clusters/c1/nodes/n1/network_interfaces/n1 -o macaddress=08:00:27:5B:C1:4F
+
+# Update the MS bond slave eth MAC address property
+litp update -p /ms/network_interfaces/n1 -o macaddress=08:00:27:5B:C1:65
+
+assertState -p /ms/network_interfaces/n1 Updated
+assertProperty /ms/network_interfaces/n1 -o macaddress=08:00:27:5B:C1:65
+
+assertError --err_type DoNothingPlanError create_plan
+
+# Restore
+litp update -p /ms/network_interfaces/n1 -o macaddress=08:00:27:5B:C1:64
+assertState -p /ms/network_interfaces/n1 Applied
+assertProperty /ms/network_interfaces/n1 -o macaddress=08:00:27:5B:C1:64
+
+# Update the MN bond slave eth MAC address property
+litp update -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/n1 -o macaddress=08:00:27:5B:C1:5F
+
+assertState -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/n1 Updated
+assertProperty /deployments/d1/clusters/c1/nodes/n1/network_interfaces/n1 -o macaddress=08:00:27:5B:C1:5F
+
+assertError --err_type DoNothingPlanError create_plan
+
+# Restore
+litp update -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/n1 -o macaddress=08:00:27:5B:C1:4F
+assertState -p /deployments/d1/clusters/c1/nodes/n1 Applied
+assertState -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/n1 Applied
+assertProperty /deployments/d1/clusters/c1/nodes/n1/network_interfaces/n1 -o macaddress=08:00:27:5B:C1:4F

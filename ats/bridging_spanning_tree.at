@@ -1,0 +1,37 @@
+# Boilerplate 2-node cluster with MS
+
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name=sample-profile version=rhel6 path=/profiles/node-iso/ arch=x86_64 breed=redhat
+
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+litp create -t network -p /infrastructure/networking/networks/mgmt -o name=mgmt subnet="192.168.0.0/24" litp_management=true
+litp create -t network -p /infrastructure/networking/networks/river -o name=river subnet="10.0.0.0/24" litp_management=false
+litp create -t route -p /infrastructure/networking/routes/default -o subnet="0.0.0.0/0" gateway="10.0.0.254"
+litp create -t deployment -p /deployments/vm
+litp create -t cluster -p /deployments/vm/clusters/c1
+
+# Node 1
+litp create -t system -p /infrastructure/systems/mn1 -o system_name=MN1
+litp create -t node -p /deployments/vm/clusters/c1/nodes/mn1 -o hostname=node1
+litp inherit -p /deployments/vm/clusters/c1/nodes/mn1/system -s /infrastructure/systems/mn1
+litp inherit -p /deployments/vm/clusters/c1/nodes/mn1/os -s /software/profiles/rhel_6_4
+litp inherit -p /deployments/vm/clusters/c1/nodes/mn1/storage_profile -s /infrastructure/storage/storage_profiles/profile_1
+litp inherit -p /deployments/vm/clusters/c1/nodes/mn1/routes/default -s /infrastructure/networking/routes/default
+litp create -t eth -p /deployments/vm/clusters/c1/nodes/mn1/network_interfaces/eth9 -o device_name=eth9 macaddress=00:00:00:00:00:01 network_name=mgmt ipaddress=192.168.0.1
+
+
+# MS
+litp inherit -p /ms/routes/default -s /infrastructure/networking/routes/default
+litp create -t eth -p /ms/network_interfaces/eth0 -o device_name=eth0 macaddress=DE:AD:BE:EF:13:39 ipaddress=192.168.0.111 network_name=mgmt
+
+
+### AT specific bits..
+litp create -t eth -p /ms/network_interfaces/eth1      -o device_name=vnet0 macaddress=DE:AD:BE:EF:13:45 network_name=river ipaddress=10.0.0.3
+
+litp create -p /deployments/vm/clusters/c1/nodes/mn1/network_interfaces/vnet0   -t eth    -o device_name=eth0  macaddress=DE:AD:BE:EF:13:37 bridge=brMS_VM_bridge
+litp create -p /deployments/vm/clusters/c1/nodes/mn1/network_interfaces/bridge  -t bridge -o device_name=brMS_VM_bridge network_name=river ipaddress=10.0.0.105 stp=true forwarding_delay=4
+
+
+litp create_plan
+litp run_plan
+assertFileContents bridging_spanning_tree/node1.pp /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/node1.pp
+

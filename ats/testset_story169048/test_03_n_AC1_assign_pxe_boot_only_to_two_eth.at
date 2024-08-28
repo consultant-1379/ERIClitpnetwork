@@ -1,0 +1,12 @@
+# Common infrastructure
+runLitpScript misc/create_common_infrastructure.inc
+
+# Run common deployment (ms with 1nic; 1 node with 3 nics: 1 bond, 1 bridge, 1 pxe boot)
+runLitpScript misc/create_common_cluster.inc
+
+litp create -t eth -p    /deployments/d1/clusters/c1/nodes/n1/network_interfaces/eth1  -o device_name=eth1 macaddress=00:00:00:00:00:02 pxe_boot_only=true
+
+let __err_multiple_if0 --err_type ValidationError --err_message 'Property "pxe_boot_only" can be set to "true" on only one interface on node "node1"' --vpath /deployments/d1/clusters/c1/nodes/n1/network_interfaces/eth0
+let __err_multiple_if1 --err_type ValidationError --err_message 'Property "pxe_boot_only" can be set to "true" on only one interface on node "node1"' --vpath /deployments/d1/clusters/c1/nodes/n1/network_interfaces/eth1
+
+assertError __err_multiple_if0 __err_multiple_if1  create_plan

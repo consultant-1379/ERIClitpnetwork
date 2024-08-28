@@ -1,0 +1,19 @@
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name=sample-profile version=rhel6 path=/profiles/node-iso/ arch=x86_64 breed=redhat
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/sp1
+
+litp create -t route -p /infrastructure/networking/routes/r1 -o subnet="0.0.0.0/0" gateway="10.4.23.1"
+litp create -t network -p /infrastructure/networking/networks/n1 -o name=mgmt subnet="10.4.23.0/24" litp_management=true
+
+litp inherit -p /ms/routes/default -s /infrastructure/networking/routes/r1
+
+litp create -t eth  -p /ms/network_interfaces/if0 -o device_name=eth0 macaddress=08:00:27:24:8f:27 master=bond0
+litp create -t eth  -p /ms/network_interfaces/if1 -o device_name=eth1 macaddress=08:00:27:24:8f:21 master=bond0
+litp create -t bond -p /ms/network_interfaces/if2 -o device_name=bond0 network_name=mgmt ipaddress=10.4.23.50 miimon=100 primary=eth0 primary_reselect=0
+
+litp create_plan
+litp run_plan
+
+litp update -p /ms/network_interfaces/if2 -o primary=bogus
+
+let __err_1 --err_type ValidationError --err_message 'Primary value "bogus" is not a valid slave of this bond'
+assertError __err_1 create_plan

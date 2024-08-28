@@ -1,0 +1,36 @@
+## To ensure that it is possible to specify, deploy, and update a bridge
+## when hash_max properties are present. Note: Tested values are min +1 step,
+## and maximum -1 step values
+
+## Prerequisite - minimum LITP Deployment
+runLitpScript ../minimum_deployments.inc
+
+## 1. Create a bridge with hash_max properties.
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if1 -t bridge -o device_name=brMS_VM_bridge network_name=stream ipaddress=10.0.0.105 multicast_snooping=1 multicast_router=1 multicast_querier=1 hash_max=1024
+
+## 2. Create and run plan.
+litp create_plan
+litp run_plan
+
+## 3. Ensure generated puppet manifests correctness.
+assertFileContents ../bridging_multicast/node1.pp /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/node1.pp
+
+## 4. Update bridge with hash_max properties - lower positive range.
+litp update -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if1 -o hash_max=2
+
+## 5. Create and run plan.
+litp create_plan
+litp run_plan
+
+## 6. Ensure generated puppet manifests correctness.
+assertFileContents ../bridging_multicast/node1_test_04_lower_range.pp /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/node1.pp
+
+## 7. Update bridge with hash_max properties - upper positive range.
+litp update -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if1 -o hash_max=262144
+
+## 8. Create and run plan.
+litp create_plan
+litp run_plan
+
+## 9. Ensure generated puppet manifests correctness.
+assertFileContents ../bridging_multicast/node1_test_04_upper_range.pp /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/node1.pp

@@ -1,0 +1,11 @@
+# Common infrastructure
+runLitpScript misc/create_common_infrastructure.inc
+
+litp create -t eth -p /ms/network_interfaces/eth0 -o device_name=eth0 macaddress=DE:AD:BE:EF:13:39 ipaddress=192.168.0.111 network_name=internal
+litp create -t eth -p /ms/network_interfaces/eth1 -o device_name=eth1 macaddress=DE:AD:BE:EF:13:3A pxe_boot_only=true
+
+# Set pxe_boot_only in a non initial node
+
+let __err_node_ms --err_type ValidationError --err_message 'Property "pxe_boot_only" cannot be set on the "ms"' --vpath /ms/network_interfaces/eth1
+
+assertError __err_node_ms create_plan

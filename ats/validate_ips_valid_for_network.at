@@ -1,0 +1,29 @@
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name='sample-profile' path='/profiles/node-iso/'
+
+litp create -t system -p /infrastructure/systems/system1 -o system_name='MN1VM'
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+litp create -t route -p /infrastructure/networking/routes/r1 -o subnet="0.0.0.0/0" gateway="10.10.10.1"
+
+litp create -t deployment -p /deployments/local_vm
+litp create -t cluster -p /deployments/local_vm/clusters/cluster1
+litp create -t node -p /deployments/local_vm/clusters/cluster1/nodes/node1 -o hostname='node1'
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/system -s /infrastructure/systems/system1
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/os -s /software/profiles/rhel_6_4
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/storage_profile -s /infrastructure/storage/storage_profiles/profile_1
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/routes/r1 -s /infrastructure/networking/routes/r1
+
+litp inherit -p /ms/routes/r1 -s /infrastructure/networking/routes/r1
+litp create -t eth -p /ms/network_interfaces/if0 -o network_name=nodes ipaddress=10.10.10.2 device_name=eth0 macaddress=00:00:00:00:00:00
+
+
+
+
+
+
+
+litp create -t eth -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/if0 -o network_name=nodes ipaddress=10.10.10.3 device_name=eth0 macaddress=00:00:00:00:00:01
+litp create -p /infrastructure/networking/networks/nodes     -t network -o subnet='40.10.10.0/24' name=nodes litp_management=true  
+
+#litp create_plan
+assertError create_plan
+

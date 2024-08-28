@@ -1,0 +1,69 @@
+#################
+# This AT library builds scenario to be used in
+# AT's related to TORF-159927
+#
+# Scenario:
+#       mgmt network....: 10.10.10.0/24
+#       traffic1 network: 10.10.20.0/24
+#       traffic2 network: 10.10.30.0/24
+#       traffic3 network: 10.10.40.0/24
+#       N1..: 10.10.10.3 (if0)
+#             10.10.20.3 (if1)
+#             10.10.30.3 (if2)
+#             10.10.40.3 (if3)
+#       N2..: 10.10.10.4 (if0)
+#             10.10.20.4 (if1)
+#             10.10.30.4 (if2)
+#             10.10.40.4 (if3)
+#       MS..: 10.10.10.5 (if0)
+
+litp create -t os-profile           -p /software/profiles/rhel_6_4      -o name='sample-profile' path='/profiles/node-iso/'
+litp create -t system               -p /infrastructure/systems/system1  -o system_name='MN1VM'
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+
+litp create -t network  -p /infrastructure/networking/networks/mgmt       -o name='mgmt'      subnet='10.10.10.0/24' litp_management=true
+litp create -t network  -p /infrastructure/networking/networks/t1   -o name='traffic1'  subnet='10.10.20.0/24'
+litp create -t network  -p /infrastructure/networking/networks/t2   -o name='traffic2'  subnet='10.10.30.0/24'
+litp create -t network  -p /infrastructure/networking/networks/t3   -o name='traffic3'  subnet='10.10.40.0/24'
+litp create -t network  -p /infrastructure/networking/networks/hb1 -o name='hb1'
+litp create -t network  -p /infrastructure/networking/networks/hb2 -o name='hb2'
+
+litp create -t route    -p /infrastructure/networking/routes/r1 -o subnet='0.0.0.0/0'       gateway='10.10.10.1'
+litp create -t route    -p /infrastructure/networking/routes/t1 -o subnet='10.11.20.0/24'   gateway='10.10.20.1'
+litp create -t route    -p /infrastructure/networking/routes/t2 -o subnet='10.11.30.0/24'   gateway='10.10.30.1'
+litp create -t route    -p /infrastructure/networking/routes/t3 -o subnet='10.11.40.0/24'   gateway='10.10.40.1'
+
+litp create -t deployment -p /deployments/at
+
+# Node 1
+litp create -t cluster    -p /deployments/at/clusters/c1
+litp create -t node       -p /deployments/at/clusters/c1/nodes/n1 -o hostname='node1'
+litp inherit              -p /deployments/at/clusters/c1/nodes/n1/system -s /infrastructure/systems/system1
+litp inherit              -p /deployments/at/clusters/c1/nodes/n1/os -s /software/profiles/rhel_6_4
+litp inherit              -p /deployments/at/clusters/c1/nodes/n1/storage_profile -s /infrastructure/storage/storage_profiles/profile_1
+litp inherit              -p /deployments/at/clusters/c1/nodes/n1/routes/r1 -s /infrastructure/networking/routes/r1
+litp create -t eth        -p /deployments/at/clusters/c1/nodes/n1/network_interfaces/if0 -o network_name=mgmt ipaddress=10.10.10.3 device_name=eth0 macaddress=00:00:00:00:01:01
+litp create -t eth        -p /deployments/at/clusters/c1/nodes/n1/network_interfaces/if1 -o network_name=traffic1 ipaddress=10.10.20.3 device_name=eth1 macaddress=00:00:00:00:01:02
+litp create -t eth        -p /deployments/at/clusters/c1/nodes/n1/network_interfaces/if2 -o network_name=traffic2 ipaddress=10.10.30.3 device_name=eth2 macaddress=00:00:00:00:01:03
+litp create -t eth        -p /deployments/at/clusters/c1/nodes/n1/network_interfaces/if3 -o network_name=traffic3 ipaddress=10.10.40.3 device_name=eth3 macaddress=00:00:00:00:01:04
+
+# Node 2
+litp create -t node       -p /deployments/at/clusters/c1/nodes/n2 -o hostname='node2'
+litp inherit              -p /deployments/at/clusters/c1/nodes/n2/system -s /infrastructure/systems/system1
+litp inherit              -p /deployments/at/clusters/c1/nodes/n2/os -s /software/profiles/rhel_6_4
+litp inherit              -p /deployments/at/clusters/c1/nodes/n2/storage_profile -s /infrastructure/storage/storage_profiles/profile_1
+litp inherit              -p /deployments/at/clusters/c1/nodes/n2/routes/r1 -s /infrastructure/networking/routes/r1
+litp create -t eth        -p /deployments/at/clusters/c1/nodes/n2/network_interfaces/if0 -o network_name=mgmt ipaddress=10.10.10.4 device_name=eth0 macaddress=00:00:00:00:02:01
+litp create -t eth        -p /deployments/at/clusters/c1/nodes/n2/network_interfaces/if1 -o network_name=traffic1 ipaddress=10.10.20.4 device_name=eth1 macaddress=00:00:00:00:02:02
+litp create -t eth        -p /deployments/at/clusters/c1/nodes/n2/network_interfaces/if2 -o network_name=traffic2 ipaddress=10.10.30.4 device_name=eth2 macaddress=00:00:00:00:02:03
+litp create -t eth        -p /deployments/at/clusters/c1/nodes/n2/network_interfaces/if3 -o network_name=traffic3 ipaddress=10.10.40.4 device_name=eth3 macaddress=00:00:00:00:02:04
+
+# MS
+litp create -t eth        -p /ms/network_interfaces/if0 -o network_name=mgmt ipaddress=10.10.10.5 device_name=eth0 macaddress=00:00:00:00:00:01
+litp inherit              -p /ms/routes/r1 -s /infrastructure/networking/routes/r1
+
+####
+# Run plan
+#
+litp create_plan
+litp run_plan

@@ -1,0 +1,41 @@
+# Boilerplate 1 x node cluster with MS
+
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name=sample-profile version=rhel6 path=/profiles/node-iso/ arch=x86_64 breed=redhat
+
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/sp1
+litp create -t route -p /infrastructure/networking/routes/r1 -o subnet="0.0.0.0/0" gateway="10.0.0.254"
+litp create -t network -p /infrastructure/networking/networks/n1 -o name=net1 subnet="10.0.0.0/24" litp_management=true
+litp create -t network -p /infrastructure/networking/networks/n2 -o name=net2 subnet="20.0.0.0/24" litp_management=false
+litp create -t network -p /infrastructure/networking/networks/n3 -o name=net3 subnet="30.0.0.0/24" litp_management=false
+
+litp create -t deployment -p /deployments/d1
+litp create -t cluster -p /deployments/d1/clusters/c1
+
+# Node 1
+litp create -t system -p /infrastructure/systems/s1 -o system_name=MN1
+litp create -t node -p /deployments/d1/clusters/c1/nodes/n1 -o hostname=mn1
+litp inherit -p /deployments/d1/clusters/c1/nodes/n1/system -s /infrastructure/systems/s1
+litp inherit -p /deployments/d1/clusters/c1/nodes/n1/os -s /software/profiles/rhel_6_4
+litp inherit -p /deployments/d1/clusters/c1/nodes/n1/storage_profile -s /infrastructure/storage/storage_profiles/sp1
+litp inherit -p /deployments/d1/clusters/c1/nodes/n1/routes/r1 -s /infrastructure/networking/routes/r1
+litp create -t eth -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if0 -o device_name=eth0 macaddress=DE:AD:BE:EF:13:37 network_name=net1 ipaddress=10.0.0.2
+
+# MS
+litp inherit -p /ms/routes/default -s /infrastructure/networking/routes/r1
+litp create -t eth -p /ms/network_interfaces/if0 -o device_name=eth0 macaddress=DE:AD:BE:EF:13:39 bridge=br0
+litp create -t eth -p /ms/network_interfaces/if1 -o device_name=eth1 macaddress=DE:AD:BE:EF:13:40 bridge=br1
+litp create -t eth -p /ms/network_interfaces/if2 -o device_name=eth2 macaddress=DE:AD:BE:EF:13:41 bridge=br2
+
+
+litp create -t bridge -p /ms/network_interfaces/if3 -o device_name=br0 network_name=net1 ipaddress=10.0.0.1 stp=false forwarding_delay=4 hash_elasticity=64 hash_max=4096 ipv6_autoconf=false
+litp create -t bridge -p /ms/network_interfaces/if4 -o device_name=br1 network_name=net2 ipaddress=20.0.0.1 stp=false forwarding_delay=4 hash_elasticity=64 hash_max=4096 ipv6_autoconf=false
+litp create -t bridge -p /ms/network_interfaces/if5 -o device_name=br2 network_name=net3 ipaddress=30.0.0.1 stp=false forwarding_delay=4 hash_elasticity=64 hash_max=4096 ipv6_autoconf=false
+litp create_plan
+litp run_plan
+
+litp update -p /ms/network_interfaces/if3 -o ipv6_autoconf=true  hash_elasticity=64
+litp update -p /ms/network_interfaces/if4 -o ipv6_autoconf=false hash_elasticity=4294967295
+litp update -p /ms/network_interfaces/if5 -o ipv6_autoconf=true  hash_elasticity=0
+litp create_plan
+litp run_plan
+assertFileContents expected/ms1.pp /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/ms1.pp

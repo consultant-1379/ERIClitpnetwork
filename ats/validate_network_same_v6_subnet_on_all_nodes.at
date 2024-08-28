@@ -1,0 +1,43 @@
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name='sample-profile' path='/profiles/node-iso/'
+litp create -t system               -p /infrastructure/systems/system1 -o system_name='MN1VM'
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+litp create -t route                -p /infrastructure/networking/routes/r1 -o subnet="0.0.0.0/0" gateway="10.10.10.1"
+litp create -t network              -p /infrastructure/networking/networks/nodes -o subnet='10.10.10.0/24' name=nodes litp_management=true
+
+litp create -t deployment -p /deployments/at
+# Node 1
+litp create -t cluster    -p /deployments/at/clusters/c1
+litp create -t node       -p /deployments/at/clusters/c1/nodes/n1 -o hostname='node1'
+litp inherit              -p /deployments/at/clusters/c1/nodes/n1/system -s /infrastructure/systems/system1
+litp inherit              -p /deployments/at/clusters/c1/nodes/n1/os -s /software/profiles/rhel_6_4
+litp inherit              -p /deployments/at/clusters/c1/nodes/n1/storage_profile -s /infrastructure/storage/storage_profiles/profile_1
+litp inherit              -p /deployments/at/clusters/c1/nodes/n1/routes/r1 -s /infrastructure/networking/routes/r1
+litp create -t eth        -p /deployments/at/clusters/c1/nodes/n1/network_interfaces/if0 -o network_name=nodes ipaddress=10.10.10.3 device_name=eth0 macaddress=00:00:00:00:00:01
+# Node 2
+litp create -t node       -p /deployments/at/clusters/c1/nodes/n2 -o hostname='node2'
+litp inherit              -p /deployments/at/clusters/c1/nodes/n2/system -s /infrastructure/systems/system1
+litp inherit              -p /deployments/at/clusters/c1/nodes/n2/os -s /software/profiles/rhel_6_4
+litp inherit              -p /deployments/at/clusters/c1/nodes/n2/storage_profile -s /infrastructure/storage/storage_profiles/profile_1
+litp inherit              -p /deployments/at/clusters/c1/nodes/n2/routes/r1 -s /infrastructure/networking/routes/r1
+litp create -t eth        -p /deployments/at/clusters/c1/nodes/n2/network_interfaces/if0 -o network_name=nodes ipaddress=10.10.10.4 device_name=eth0 macaddress=00:00:00:00:00:04
+# MS
+litp create -t eth        -p /ms/network_interfaces/if0 -o network_name=nodes ipaddress=10.10.10.5 device_name=eth0 macaddress=00:00:00:00:00:03
+litp inherit              -p /ms/routes/r1 -s /infrastructure/networking/routes/r1
+
+
+# Test case
+litp create -p /deployments/at/clusters/c1/nodes/n1/network_interfaces/eth2 -t eth -o device_name=eth2 macaddress=08:00:27:05:33:4A ipv6address=fdde:4d7e:d471::833:61:199/96 network_name=v6
+litp create -p /deployments/at/clusters/c1/nodes/n2/network_interfaces/eth2 -t eth -o device_name=eth2 macaddress=08:00:27:A9:6C:8D ipv6address=fdde:4d7e:d471::833:61:101/96 network_name=v6
+litp create -p /infrastructure/networking/networks/v6 -t network -o name=v6
+litp create_plan
+litp run_plan
+
+# Change IPv6 to be different subnet
+litp update -p /deployments/at/clusters/c1/nodes/n2/network_interfaces/eth2 -o ipv6address=fddf:4d7e:d472::600:61:199/96
+assertError create_plan
+
+# Check with implicit netmask
+litp update -p /deployments/at/clusters/c1/nodes/n1/network_interfaces/eth2 -o ipv6address=fddf:4d7e:d472::600:61:199
+litp update -p /deployments/at/clusters/c1/nodes/n2/network_interfaces/eth2 -o ipv6address=fddf:4d7e:d472::600:61:101
+litp create_plan
+

@@ -1,0 +1,31 @@
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name=sample-profile version=rhel6 path=/profiles/node-iso/ arch=x86_64 breed=redhat
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+
+litp create -t network -p /infrastructure/networking/networks/mgmt  -o name=mgmt  subnet="10.4.23.0/24" litp_management=true
+litp create -t network -p /infrastructure/networking/networks/nonmgmt  -o name=nonmgmt  subnet="10.5.23.0/24" 
+
+litp create -t bond -p /ms/network_interfaces/bond0 -o device_name=bond0 network_name=mgmt ipaddress=10.4.23.10
+litp create -t eth -p /ms/network_interfaces/eth0 -o device_name=eth0 macaddress=aa:aa:aa:aa:aa:aa master=bond0
+litp create -t eth -p /ms/network_interfaces/eth1 -o device_name=eth1 macaddress=aa:aa:aa:aa:aa:ab network_name=nonmgmt ipaddress=10.5.23.11
+
+
+#Show that master and device_name can be updated before items have been applied
+litp update -p /ms/network_interfaces/eth0 -o master=bond5
+litp update -p /ms/network_interfaces/eth0 -o master=bond0
+litp update -p /ms/network_interfaces/bond0 -o device_name=bond5
+litp update -p /ms/network_interfaces/bond0 -o device_name=bond0
+litp update -p /ms/network_interfaces/eth0 -o device_name=eth_0
+litp update -p /ms/network_interfaces/eth0 -o device_name=eth0
+
+litp create_plan
+runPlanEnd
+
+#Show that master and device_name cannot be updated after items have been applied if the properties previously existed
+assertError update -p /ms/network_interfaces/eth0 -o master=bond1 --err_message "Unable to modify readonly property: master"
+assertError update -p /ms/network_interfaces/bond0 -o device_name=bond_0 --err_message "Unable to modify readonly property: device_name"
+assertError update -p /ms/network_interfaces/eth0 -o device_name=eth_0 --err_message "Unable to modify readonly property: device_name"
+
+#Show that master can be added to an applied item when the property was previously not set
+litp update -p /ms/network_interfaces/eth1 -d network_name ipaddress
+litp create -t bond -p /ms/network_interfaces/bond1 -o device_name=bond1 network_name=nonmgmt ipaddress=10.5.23.11
+litp update -p /ms/network_interfaces/eth1 -o master=bond1

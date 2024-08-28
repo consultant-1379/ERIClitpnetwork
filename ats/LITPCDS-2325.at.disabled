@@ -1,0 +1,66 @@
+litp create -t os-profile -p /software/profiles/rhel -o name='sample-profile' path='/profiles/node-iso/'
+
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/mock -o storage_profile_name='simple_storage'
+
+litp create -t system -p /infrastructure/systems/systemA -o system_name='sys1'
+litp create -t nic -p /infrastructure/systems/systemA/network_interfaces/nic0 -o interface_name="eth0" macaddress='2C:59:E5:3D:64:78'
+
+litp create -t system -p /infrastructure/systems/systemB -o system_name='sys2'
+litp create -t nic -p /infrastructure/systems/systemB/network_interfaces/nic0 -o interface_name="eth0" macaddress='2C:59:E5:3D:64:79'
+
+litp create -p /infrastructure/networking/routes/r1 -t route -o name=default subnet="0.0.0.0/0" gateway="10.46.83.131"
+
+litp create -t ip-range -p /infrastructure/networking/ip_ranges/range1 -o network_name='nodes'  start='10.46.83.131' end='10.46.83.137' subnet='10.46.80.0/21'
+litp create -t ip-range -p /infrastructure/networking/ip_ranges/range2 -o network_name='extra'  start='10.44.235.70' end='10.44.235.70' subnet='10.44.235.0/24'
+
+
+litp create -t network-profile -p /infrastructure/networking/network_profiles/LITPCDS_2325 -o name='extra_nic' management_network='nodes'
+litp create -t interface -p /infrastructure/networking/network_profiles/LITPCDS_2325/interfaces/if0 -o interface_basename='eth0'
+litp create -t network-old -p /infrastructure/networking/network_profiles/LITPCDS_2325/networks/network0 -o network_name='nodes' interface='if0'
+
+
+litp create -t deployment -p /deployments/2_nodes
+litp create -t cluster -p /deployments/2_nodes/clusters/cluster1
+
+litp create -t node -p /deployments/2_nodes/clusters/cluster1/nodes/node1 -o  hostname='node1'
+litp link -t system -p /deployments/2_nodes/clusters/cluster1/nodes/node1/system -o system_name='sys1'
+litp link -t network-profile -p /deployments/2_nodes/clusters/cluster1/nodes/node1/network_profile -o name='extra_nic'
+litp link -t ip-range -p /deployments/2_nodes/clusters/cluster1/nodes/node1/ipaddresses/ip1 -o network_name='nodes'
+#
+litp link -t os-profile -p /deployments/2_nodes/clusters/cluster1/nodes/node1/os -o name='sample-profile'
+litp link -t storage-profile-base -p /deployments/2_nodes/clusters/cluster1/nodes/node1/storage_profile -o storage_profile_name='simple_storage'
+
+litp create -t node -p /deployments/2_nodes/clusters/cluster1/nodes/node2 -o  hostname='node2'
+litp link -t system -p /deployments/2_nodes/clusters/cluster1/nodes/node2/system -o system_name='sys2'
+litp link -t network-profile -p /deployments/2_nodes/clusters/cluster1/nodes/node2/network_profile -o name='extra_nic'
+litp link -t ip-range -p /deployments/2_nodes/clusters/cluster1/nodes/node2/ipaddresses/ip1 -o network_name='nodes'
+#
+litp link -t os-profile -p /deployments/2_nodes/clusters/cluster1/nodes/node2/os -o name='sample-profile'
+litp link -t storage-profile-base -p /deployments/2_nodes/clusters/cluster1/nodes/node2/storage_profile -o storage_profile_name='simple_storage'
+
+litp link -p /deployments/2_nodes/clusters/cluster1/nodes/node1/routes/r1 -t route -o name=default
+litp link -p /deployments/2_nodes/clusters/cluster1/nodes/node2/routes/r1 -t route -o name=default
+
+
+litp create_plan
+litp run_plan
+
+assertState -p /infrastructure/systems/systemA/network_interfaces/nic0 Applied
+assertState -p /infrastructure/systems/systemB/network_interfaces/nic0 Applied
+
+# Add an interface to systemA
+litp create -t nic -p /infrastructure/systems/systemA/network_interfaces/nic1 -o interface_name='eth1' macaddress='00:11:22:33:44:55'
+
+litp create -t interface -p /infrastructure/networking/network_profiles/LITPCDS_2325/interfaces/if2  -o interface_basename=eth1
+litp create -t network-old 	 -p /infrastructure/networking/network_profiles/LITPCDS_2325/networks/data11  -o network_name=extra interface=if2
+
+assertState -p /infrastructure/systems/systemA/network_interfaces/nic1 Initial
+
+assertError create_plan
+
+litp create -t nic -p /infrastructure/systems/systemB/network_interfaces/nic1 -o interface_name='eth1' macaddress='00:11:22:33:44:BB'
+litp create_plan
+litp run_plan
+
+assertState -p /infrastructure/systems/systemA/network_interfaces/nic1 Applied
+assertState -p /infrastructure/systems/systemB/network_interfaces/nic1 Applied

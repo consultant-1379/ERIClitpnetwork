@@ -1,0 +1,22 @@
+litp create -t system -p /infrastructure/systems/ms_system -o system_name='ms_system'
+litp inherit -p /ms/system -s /infrastructure/systems/ms_system
+
+litp create -t route6 -p /infrastructure/networking/routes/v6_def -o subnet='::/0' gateway='2001:4860:4860::8888'
+litp create -t route -p /infrastructure/networking/routes/v4_def -o subnet='0.0.0.0/0' gateway='192.168.1.1'
+litp create -t route6 -p /infrastructure/networking/routes/other -o subnet='3ffe:fffe:1:2::/64' gateway='2001:4860:4860::9999'
+
+litp inherit -p /ms/routes/v4_def -s /infrastructure/networking/routes/v4_def
+litp inherit -p /ms/routes/v6_def -s /infrastructure/networking/routes/v6_def
+litp inherit -p /ms/routes/other -s /infrastructure/networking/routes/other
+
+litp create -t network -p /infrastructure/networking/networks/ext -o name='external' subnet='10.44.235.0/24' litp_management=true
+litp create -t network -p /infrastructure/networking/networks/dual -o name='dual' subnet='192.168.1.0/24' litp_management=false
+
+litp create -t eth -p /ms/network_interfaces/nic_A -o network_name=external ipaddress=10.44.235.100 device_name=eth0 macaddress=00:11:22:AA:BB:CC
+litp create -t eth -p /ms/network_interfaces/nic_B -o network_name=dual ipv6address=2001:4860:4860::1/64 device_name=eth1 macaddress=33:44:55:DD:EE:FF ipaddress=192.168.1.2
+
+
+litp create_plan
+litp run_plan
+
+assertFileContents dual_stack_routes/initial_setup.pp /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/ms1.pp

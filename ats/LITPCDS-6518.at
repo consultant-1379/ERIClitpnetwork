@@ -1,0 +1,22 @@
+litp create -t network -p /infrastructure/networking/networks/netA -o name='ipv6_net_A'
+litp create -t network -p /infrastructure/networking/networks/netB -o name='ipv6_net_B'
+litp create -t network -p /infrastructure/networking/networks/mgmt -o name='mgmt' litp_management=true subnet=192.168.0.0/24
+
+litp create -t eth -p /ms/network_interfaces/nic0 -o device_name=eth0 macaddress=00:00:00:FF:FF:FF ipaddress=192.168.0.1 network_name=mgmt
+#
+litp create -t eth -p /ms/network_interfaces/nic1 -o device_name=eth1 macaddress=11:22:33:44:55:66 ipv6address=2001:aa::0:1/64 network_name=ipv6_net_A
+litp create -t eth -p /ms/network_interfaces/nic2 -o device_name=eth2 macaddress=77:88:99:AA:BB:CC ipv6address=2001:bb::0:1/64 network_name=ipv6_net_B
+
+litp create -t route6 -p /infrastructure/networking/routes/route1 -o subnet='2607:cc::1/128' gateway='2001:aa::1:4'
+litp create -t route6 -p /infrastructure/networking/routes/route2 -o subnet='2607:ee::1/128' gateway='2001:bb::2:4'
+
+litp inherit -p /ms/routes/rA -s /infrastructure/networking/routes/route1
+litp inherit -p /ms/routes/rB -s /infrastructure/networking/routes/route2
+ 
+
+litp update -p /infrastructure/networking/routes/route1 -o gateway=2001:bb::2:4
+litp create_plan
+litp run_plan
+
+litp update -p /infrastructure/networking/routes/route1 -o subnet=2607:cc::2/128 gateway=2001:aa::2:4
+litp create_plan

@@ -1,0 +1,13 @@
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name=sample-profile version=rhel6 path=/profiles/node-iso/ arch=x86_64 breed=redhat
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+
+litp create -t route   -p /infrastructure/networking/routes/default -o subnet="0.0.0.0/0" gateway="10.4.23.1"
+litp inherit -p /ms/routes/default -s /infrastructure/networking/routes/default
+litp create -t network -p /infrastructure/networking/networks/mgmt  -o name=mgmt  subnet="10.4.23.0/24" litp_management=true
+
+
+
+# network_name refers to nonexistent network
+litp create -t eth -p /ms/network_interfaces/eth1 -o device_name=eth0 macaddress=08:00:27:24:8f:27 network_name=mistyped ipaddress=10.4.23.1
+
+assertError create_plan

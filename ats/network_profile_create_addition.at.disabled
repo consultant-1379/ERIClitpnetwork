@@ -1,0 +1,50 @@
+litp create -p /infrastructure/networking/ip_ranges/ms_network -t ip-range -o network_name='nodes' start='10.10.10.100' end='10.10.10.110' subnet='10.10.10.0/24' 
+
+litp create -p /infrastructure/networking/routes/r1 -t route -o name=default subnet="0.0.0.0/0" gateway="10.10.10.1"
+
+litp create -p /infrastructure/networking/network_profiles/nodes -t network-profile -o name='nodes' management_network='nodes'
+litp create -p /infrastructure/networking/network_profiles/nodes/networks/mynetwork -t network-old -o interface='mynic0' network_name='nodes'
+litp create -p /infrastructure/networking/network_profiles/nodes/interfaces/mynic0 -t interface -o interface_basename='eth0'
+
+litp create -p /infrastructure/systems/system1 -t system -o system_name='MN1VM'
+litp create -p /infrastructure/systems/system1/network_interfaces/nic_0 -t nic -o interface_name='eth0' macaddress='08:00:27:24:8f:27'
+
+litp create -p /infrastructure/storage/storage_profiles/profile_1 -t storage-profile-base -o storage_profile_name=sp1
+
+litp create -p /software/profiles/osprofile1 -t os-profile -o name="node-iso" path="/cobbler/ks_mirror/node-iso-x86_64"
+
+litp create -p /deployments/local_vm -t deployment
+litp create -p /deployments/local_vm/clusters/cluster1 -t cluster
+litp create -p /deployments/local_vm/clusters/cluster1/nodes/node1 -t node -o hostname='node1'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/system -t system -o system_name='MN1VM'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/ipaddresses/ip1 -t ip-range -o network_name='nodes' address='10.10.10.105'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_profile -t network-profile -o name='nodes'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/os -t os-profile -o name='node-iso'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/storage_profile -t storage-profile-base -o storage_profile_name='sp1'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/routes/r1 -t route -o name=default
+
+litp create_plan
+assertTask 0 "litpnetwork::config" node1 /deployments/local_vm/clusters/cluster1/nodes/node1/network_profile
+litp run_plan
+assertDirectoryContents run_plan_add_pre/ /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/
+
+# Adds one more network, and appropriate interface on the system and node
+litp create -p /infrastructure/networking/routes/bckp1 -t route -o name=bckp1 subnet='0.0.0.0/0' gateway='10.10.11.1'
+litp create -p /infrastructure/networking/ip_ranges/bckp1 -t ip-range -o network_name='bckp1' start='10.10.11.100' end='10.10.11.110' subnet='10.10.11.0/24' 
+litp create -p /infrastructure/networking/network_profiles/nodes/networks/bckp1 -t network-old -o interface="nic1" network_name="bckp1"
+litp create -p /infrastructure/networking/network_profiles/nodes/interfaces/nic1 -t interface -o interface_basename="eth2"
+litp create -p /infrastructure/systems/system1/network_interfaces/nic_1 -t nic -o interface_name='eth2' macaddress='08:00:27:24:8f:28'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/ipaddresses/ip2 -t ip-range -o network_name='bckp1' address='10.10.11.105'
+
+assertQueryState /deployments/local_vm/clusters/cluster1/nodes/node1 network_profile Applied
+assertQueryState /deployments/local_vm/clusters/cluster1/nodes/node1 network_profile/networks Applied
+assertQueryState /deployments/local_vm/clusters/cluster1/nodes/node1 network_profile/networks/bckp1 Initial
+
+# We've two networks on profile 'nodes' and no way to tell which one to use for
+# the default route. X-item validation will fail
+litp create_plan
+assertTask 0 "litpnetwork::config" node1 /deployments/local_vm/clusters/cluster1/nodes/node1/network_profile
+litp run_plan
+
+assertDirectoryContents run_plan_add_post/ /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/
+

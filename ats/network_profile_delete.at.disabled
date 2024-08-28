@@ -1,0 +1,13 @@
+litp create -p /infrastructure/networking/network_profiles/nodes -t network-profile -o name='nodes' management_network='foobar'
+litp create -p /infrastructure/networking/network_profiles/nodes/networks/mynetwork -t network-old -o interface='mynic0' network_name='foobar'
+litp create -p /infrastructure/networking/network_profiles/nodes/interfaces/mynic0 -t interface -o interface_basename='eth0'
+
+# delete some stuff now
+litp remove -p /infrastructure/networking/network_profiles/nodes/interfaces/mynic0
+assertNone /infrastructure/networking/network_profiles/nodes/interfaces/mynic0
+
+litp remove -p /infrastructure/networking/network_profiles/nodes/networks/mynetwork
+assertNone /infrastructure/networking/network_profiles/nodes/networks/mynetwork
+
+litp remove -p /infrastructure/networking/network_profiles/nodes
+assertNone /infrastructure/networking/network_profile/nodes

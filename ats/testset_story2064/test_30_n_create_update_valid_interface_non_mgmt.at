@@ -1,0 +1,15 @@
+##Verify creating eth items with IPv6 subnet values that are different to other nodes on the network results in an error being thrown when executing create plan
+
+runLitpScript ../custom_setup.inc
+
+litp create -p /infrastructure/networking/networks/network_2064 -t network -o name='test_1' subnet='10.10.10.0/24'
+litp create -p /ms/network_interfaces/if_2064 -t eth -o device_name='eth2' macaddress='00:50:56:00:00:81' network_name='test_1' ipaddress='10.10.10.25' ipv6address='2001:aa::1:4/32'
+
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if_2064 -t eth -o device_name='eth1' macaddress='00:50:56:00:00:61'  network_name='test_1' ipaddress='10.10.10.26' ipv6address='2001:aa::1:5/96'
+litp create -p /deployments/d1/clusters/c1/nodes/n2/network_interfaces/if_2064 -t eth -o device_name='eth1' macaddress='00:50:56:00:00:62'  network_name='test_1' ipaddress='10.10.10.27' ipv6address='2001:aa::1:6/43'
+
+let __err_a --err_type ValidationError --err_message 'Create plan failed: Device "eth1" on node "node1" attached to network "test_1" is using a different IPv6 subnet to other nodes on the network.' --err_vpath '/deployments/d1/clusters/c1/nodes/n1/network_interfaces/if_2064'
+let __err_b --err_type ValidationError --err_message 'Create plan failed: Device "eth1" on node "node2" attached to network "test_1" is using a different IPv6 subnet to other nodes on the network.' --err_vpath '/deployments/d1/clusters/c1/nodes/n2/network_interfaces/if_2064'
+let __err_c --err_type ValidationError --err_message 'Create plan failed: Device "eth2" on node "ms1" attached to network "test_1" is using a different IPv6 subnet to other nodes on the network.' --err_vpath '/ms/network_interfaces/if_2064'
+
+assertError __err_a __err_b __err_c create_plan

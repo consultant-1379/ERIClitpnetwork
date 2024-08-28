@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='utf-8'?>
+<litp:node-network_interfaces-collection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:litp="http://www.ericsson.com/litp" xsi:schemaLocation="http://www.ericsson.com/litp litp-xml-schema/litp.xsd" id="network_interfaces">
+  <litp:eth id="eth9">
+    <ipaddress>192.168.0.1</ipaddress>
+    <network_name>mgmt</network_name>
+    <device_name>eth9<!--note: this property is not updatable--></device_name>
+    <macaddress>00:00:00:00:00:01</macaddress>
+  </litp:eth>
+  <litp:eth id="if_2072">
+    <ipaddress>20.20.20.101</ipaddress>
+    <network_name>test2</network_name>
+    <device_name>eth2<!--note: this property is not updatable--></device_name>
+    <macaddress>00:50:56:00:00:80</macaddress>
+  </litp:eth>
+  <litp:vlan id="vlan_2072">
+    <ipaddress>10.10.10.101</ipaddress>
+    <network_name>test1</network_name>
+    <device_name>eth2.72<!--note: this property is not updatable--></device_name>
+  </litp:vlan>
+</litp:node-network_interfaces-collection>

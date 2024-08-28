@@ -1,0 +1,8 @@
+##Verify a validation error is thrown when 'network_name' prop does not match a defined network
+
+runLitpScript ../custom_setup.inc
+
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if2064 -t eth -o macaddress='00:50:56:00:00:81' device_name='eth2' ipv6address='0:0:0:0:0:dddd:a0a:a01' network_name='test'
+
+##assert error at create plan
+assertError create_plan --err_type ValidationError --err_message 'Create plan failed: Property network_name "test" does not match a defined network.' --err_vpath '/deployments/d1/clusters/c1/nodes/n1/network_interfaces/if2064'

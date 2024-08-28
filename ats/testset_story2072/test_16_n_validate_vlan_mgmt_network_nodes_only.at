@@ -1,0 +1,15 @@
+## Verify creating a vlan on the mgmt interface on the peer nodes results in validation error at create plan
+
+runLitpScript ../custom_setup.inc
+
+#create network item
+litp create -t network -p /infrastructure/networking/networks/network_2072 -o name='test1' subnet='10.10.10.0/24'
+
+#create vlan on the mgmt network
+litp create -t vlan -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/vlan_2072 -o device_name='eth1.72' network_name='mgmt' ipaddress='192.168.0.46'
+
+#create eth on node 1
+litp create -t eth -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if_2072 -o device_name='eth1' macaddress=00:50:56:00:00:61 network_name='test1' ipaddress='10.10.10.101'
+
+#assert create_plan ValidationError with expected message is present
+assertError create_plan --err_type ValidationError --err_message 'Create plan failed: Device "eth1.72" is not valid. VLAN tagging of the management interface on a peer node is not supported' --err_vpath '/deployments/d1/clusters/c1/nodes/n1/network_interfaces/vlan_2072'

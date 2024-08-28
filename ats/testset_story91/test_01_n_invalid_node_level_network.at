@@ -1,0 +1,37 @@
+## Verify create plan fails when all required properties are not set
+
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name=sample-profile version=rhel6 path=/profiles/node-iso/ arch=x86_64 breed=redhat
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+litp create -p /infrastructure/networking/networks/mgmt -t network -o name='mgmt' subnet='10.10.10.0/24' litp_management=true
+
+litp create -t deployment -p /deployments/d1
+litp create -p /deployments/d1/clusters/tmp -t cluster
+
+litp create -p /infrastructure/systems/system_node91 -t system -o system_name='MNTEST'
+litp create -p /infrastructure/systems/system_node91/disks/disk0 -t disk -o name=sda size=100G bootable=true uuid='ee7cf0a0-1922-401b-a1ae-6ec9261484c0'
+
+litp create -p /deployments/d1/clusters/tmp/nodes/node91 -t node -o hostname='mn99'
+litp create -t route -p /infrastructure/networking/routes/r1 -o subnet='0.0.0.0/0' gateway='192.168.0.1'
+
+litp inherit -p /deployments/d1/clusters/tmp/nodes/node91/routes/r1 -s /infrastructure/networking/routes/r1
+litp inherit -p /deployments/d1/clusters/tmp/nodes/node91/system -s /infrastructure/systems/system_node91
+litp inherit -p /deployments/d1/clusters/tmp/nodes/node91/os -s /software/profiles/rhel_6_4
+litp inherit -p /deployments/d1/clusters/tmp/nodes/node91/storage_profile -s /infrastructure/storage/storage_profiles/profile_1
+
+#create interface with no ipv4 address
+litp create -p /deployments/d1/clusters/tmp/nodes/node91/network_interfaces/if0 -t eth -o device_name='eth0' macaddress='BB:BB:BB:BB:BB:BB' network_name='mgmt'
+
+let __err_a --err_type ValidationError --err_message 'Create plan failed: This interface is tied to management network (mgmt) and it requires an IPv4 address.' --err_vpath '/deployments/d1/clusters/tmp/nodes/node91/network_interfaces/if0'
+let __err_b --err_type ValidationError --err_message 'Create plan failed: Route gateway is not reachable from any of the interfaces on node "mn99"' --err_vpath '/deployments/d1/clusters/tmp/nodes/node91/routes/r1'
+
+assertError __err_a __err_b create_plan
+
+litp update -p /deployments/d1/clusters/tmp/nodes/node91/network_interfaces/if0 -o ipaddress='10.10.10.2' network_name='test'
+assertError --err_type ValidationError --err_message 'Create plan failed: The management network must be used for one network interface.' --err_vpath '/ms' create_plan
+
+litp remove -p /deployments/d1/clusters/tmp/nodes/node91/network_interfaces/if0
+
+let __err_a --err_type CardinalityError --err_message 'Create plan failed: This collection requires a minimum of 1 items not marked for removal' --err_vpath '/deployments/d1/clusters/tmp/nodes/node91/network_interfaces'
+let __err_b --err_type ValidationError --err_message 'Create plan failed: Route gateway is not reachable from any of the interfaces on node "mn99"' --err_vpath '/deployments/d1/clusters/tmp/nodes/node91/routes/r1'
+
+assertError __err_a __err_b create_plan

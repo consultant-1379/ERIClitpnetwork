@@ -1,0 +1,20 @@
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name=sample-profile version=rhel6 path=/profiles/node-iso/ arch=x86_64 breed=redhat
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+
+litp create -t route -p /infrastructure/networking/routes/default -o subnet="0.0.0.0/0" gateway="10.4.23.1"
+
+litp inherit -p /ms/routes/default -s /infrastructure/networking/routes/default
+
+litp create -t network -p /infrastructure/networking/networks/river -o name=river subnet="10.4.23.0/24" litp_management=true
+litp create -t network -p /infrastructure/networking/networks/other -o name=other subnet="1.2.3.0/24"
+
+litp create -t eth -p /ms/network_interfaces/eth1 -o device_name=eth0 macaddress=08:00:27:24:8f:27 network_name=river ipaddress=10.4.23.1
+litp create -t vlan -p /ms/network_interfaces/vlan -o device_name=eth0.10 network_name=other ipaddress=1.2.3.4
+
+litp create_plan 
+litp run_plan
+
+litp remove -p /ms/routes/default
+assertState -p /ms/routes/default ForRemoval
+assertError create_plan
+assertError --err_message "Route item cannot be removed. Removal is not supported." create_plan

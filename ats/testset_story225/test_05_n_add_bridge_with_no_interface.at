@@ -1,0 +1,12 @@
+## Verify creating a bridge which doesn't have associated interface results in a create_plan error
+
+runLitpScript ../custom_setup.inc
+
+#create network item
+litp create -t network -p /infrastructure/networking/networks/test_network225 -o name='test' subnet='10.10.10.0/24'
+
+#create 'bridge' without associated interface
+litp create -t bridge -p /ms/network_interfaces/br225 -o device_name='br225' ipaddress='10.10.10.2' forwarding_delay='4' stp='false' network_name='test'
+
+#assert create_plan ValidationError with expected message is present
+assertError create_plan --err_type ValidationError --err_message 'Bridge "br225" is not used' --err_vpath '/ms/network_interfaces/br225'

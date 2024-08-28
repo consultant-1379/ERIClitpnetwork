@@ -1,0 +1,27 @@
+litp create -t system -p /infrastructure/systems/ms_system -o system_name='ms_system'
+litp inherit -p /ms/system -s /infrastructure/systems/ms_system
+
+litp create -t route -p /infrastructure/networking/routes/def -o subnet='0.0.0.0/0' gateway='10.44.235.1'
+litp create -t route -p /infrastructure/networking/routes/other -o subnet='172.19.0.0/16' gateway='10.44.86.1'
+litp inherit -p /ms/routes/def -s /infrastructure/networking/routes/def
+litp inherit -p /ms/routes/other -s /infrastructure/networking/routes/other
+
+litp create -t network -p /infrastructure/networking/networks/ext -o name='external' subnet='10.44.235.0/24' litp_management=true
+litp create -t network -p /infrastructure/networking/networks/int -o name='internal' subnet='10.44.86.0/24'
+
+litp create -t eth -p /ms/network_interfaces/nic_A -o network_name=external ipaddress=10.44.235.100 device_name=eth0 macaddress=00:11:22:AA:BB:CC
+litp create -t eth -p /ms/network_interfaces/nic_B -o network_name=internal ipaddress=10.44.86.66 device_name=eth1 macaddress=33:44:55:DD:EE:FF
+
+
+litp create_plan
+litp run_plan
+
+assertFileContents route_gw_change/before_gw_switch_if_has_no_routes.pp /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/ms1.pp
+
+litp update -p /infrastructure/networking/routes/other -o gateway=10.44.235.2
+# At this point, eth1 (which is plumbed to 10.44.86.0/24 should have *NO* routes defined on it
+
+litp create_plan
+litp run_plan
+
+assertFileContents route_gw_change/after_gw_switch_if_has_no_routes.pp /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/ms1.pp

@@ -1,0 +1,49 @@
+# Creating 2 different network profiles and assuring that proper conf is created
+
+litp create -p /infrastructure/networking/routes/r1 -t route -o name=default subnet="0.0.0.0/0" gateway="10.10.10.1"
+
+litp create -p /infrastructure/networking/ip_ranges/ms_network -t ip-range -o network_name='nodes' start='10.10.10.100' end='10.10.10.110' subnet='10.10.10.0/24' 
+
+litp create -p /infrastructure/networking/network_profiles/nodes -t network-profile -o name='nodes' management_network='nodes'
+litp create -p /infrastructure/networking/network_profiles/nodes/networks/mynetwork -t network-old -o interface='mynic0' network_name='nodes'
+litp create -p /infrastructure/networking/network_profiles/nodes/interfaces/mynic0 -t interface -o interface_basename='eth0'
+
+litp create -p /infrastructure/systems/system1 -t system -o system_name='MN1VM'
+litp create -p /infrastructure/systems/system1/network_interfaces/nic_0 -t nic -o interface_name='eth0' macaddress='08:00:27:24:8f:27'
+
+litp create -p /software/profiles/osprofile1 -t os-profile -o name="node-iso" path="/cobbler/ks_mirror/node-iso-x86_64"
+
+litp create -p /infrastructure/storage/storage_profiles/profile_1 -t storage-profile-base -o storage_profile_name=sp1
+
+litp link -p /ms/ipaddresses/ip1 -t ip-range -o network_name='nodes' address='10.10.10.100'
+
+litp create -p /deployments/local_vm -t deployment
+litp create -p /deployments/local_vm/clusters/cluster1 -t cluster
+litp create -p /deployments/local_vm/clusters/cluster1/nodes/node1 -t node -o hostname='node1'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/system -t system -o system_name='MN1VM'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/os -t os-profile -o name='node-iso'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/ipaddresses/ip1 -t ip-range -o network_name='nodes' address='10.10.10.105'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_profile -t network-profile -o name='nodes'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/storage_profile -t storage-profile-base -o storage_profile_name='sp1'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/routes/r1 -t route -o name=default
+
+litp create_plan
+assertTask 0 "litpnetwork::config" node1 /deployments/local_vm/clusters/cluster1/nodes/node1/network_profile
+litp run_plan
+
+assertQueryState /deployments/local_vm/clusters/cluster1/nodes/node1 network_profile Applied
+
+# now delete some stuff
+# can remove as we validate only on plan creation
+litp remove -p /infrastructure/networking/network_profiles/nodes
+
+litp remove -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_profile
+assertQueryState /deployments/local_vm/clusters/cluster1/nodes/node1 network_profile ForRemoval
+
+litp remove -p /deployments/local_vm/clusters/cluster1/nodes/node1/ipaddresses/ip1
+assertQueryState /deployments/local_vm/clusters/cluster1/nodes/node1 ipaddresses/ip1 ForRemoval
+
+assertError create_plan
+
+# TODO When we implement removal plans....
+# assertTaskInPlan "litpnetwork::config" /deployments/local_vm/clusters/cluster1/nodes/node1/network_profile/netgraph

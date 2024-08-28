@@ -1,0 +1,12 @@
+## Verify creating a vlan with where an eth doesn't exist results in a validation error
+
+runLitpScript ../custom_setup.inc
+
+#create network item
+litp create -t network -p /infrastructure/networking/networks/network_2072 -o name='test1' subnet='10.10.10.0/24'
+
+#create a vlan with an eth item that doesn't exist
+litp create -t vlan -p /ms/network_interfaces/vlan_2072 -o device_name='eth2.72'  ipaddress='10.10.10.151' network_name='test1'
+
+#assert create_plan ValidationError with expected message is present
+assertError create_plan --err_type ValidationError --err_message 'Create plan failed: Invalid VLAN device_name: unknown network interface item "eth2"' --err_vpath "/ms/network_interfaces/vlan_2072"

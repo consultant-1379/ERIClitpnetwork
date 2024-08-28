@@ -1,0 +1,16 @@
+# Common infrastructure
+runLitpScript misc/create_common_infrastructure.inc
+
+# Run common deployment (ms with 1nic; 1 node with 3 nics: 1 bond, 1 bridge, 1 pxe boot)
+runLitpScript misc/create_common_cluster.inc
+
+litp create_plan
+litp run_plan
+
+litp create -t eth -p    /deployments/d1/clusters/c1/nodes/n1/network_interfaces/eth1  -o device_name=eth1 macaddress=00:00:00:00:00:01 pxe_boot_only=true
+
+# Set pxe_boot_only in a non initial node
+
+let __err_node_not_initial --err_type ValidationError --err_message 'Property "pxe_boot_only" can be set to "true" only on nodes in "Initial" state' --vpath /deployments/d1/clusters/c1/nodes/n1/network_interfaces/eth1
+
+assertError __err_node_not_initial create_plan

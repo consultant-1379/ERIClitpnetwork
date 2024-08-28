@@ -1,0 +1,63 @@
+let __err_1 --err_type ValidationError --err_message 'The txqueuelen property can not be removed once set.'
+
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name=sample-profile version=rhel6 path=/profiles/node-iso/ arch=x86_64 breed=redhat
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+litp create -t system -p /infrastructure/systems/system1 -o system_name='MN1VM'
+litp create -t network -p /infrastructure/networking/networks/tnet -o name=tnet subnet="10.4.23.0/24" litp_management=true
+litp create -t network -p /infrastructure/networking/networks/traffic -o name=traffic subnet="10.4.24.0/24"
+
+litp create -t eth -p /ms/network_interfaces/eth0   -o device_name=eth0 macaddress=08:00:27:24:8f:27 master=bond0 txqueuelen=1000
+litp create -t eth -p /ms/network_interfaces/eth1   -o device_name=eth1 macaddress=08:00:27:24:8f:28 master=bond0 txqueuelen=1000
+litp create -t bond -p /ms/network_interfaces/bond0  -o device_name=bond0 ipaddress=10.4.23.2 network_name=tnet
+
+litp create_plan
+litp run_plan
+
+litp update -p /ms/network_interfaces/eth1 -o txqueuelen=10000
+litp create_plan
+litp run_plan
+
+litp update -p /ms/network_interfaces/eth1 -d txqueuelen
+assertError __err_1 --errors_length 1 --err_vpath /ms/network_interfaces/eth1 create_plan
+
+litp restore_model
+
+litp create -t eth -p /ms/network_interfaces/eth2   -o device_name=eth2 macaddress=08:00:27:24:8f:29 txqueuelen=1000 ipaddress=10.4.24.2 network_name=traffic
+litp create_plan
+litp run_plan
+litp update -p /ms/network_interfaces/eth2 -d txqueuelen
+assertError __err_1 --errors_length 1 --err_vpath /ms/network_interfaces/eth2 create_plan
+
+litp restore_model
+
+litp create -t deployment -p /deployments/local_vm
+litp create -t cluster -p /deployments/local_vm/clusters/cluster1
+litp create -t node -p /deployments/local_vm/clusters/cluster1/nodes/node1 -o hostname='node1'
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/system -s /infrastructure/systems/system1
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/os -s /software/profiles/rhel_6_4
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/storage_profile -s /infrastructure/storage/storage_profiles/profile_1
+
+litp create -t eth -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/eth0   -o device_name=eth0 macaddress=08:00:27:24:7f:27 master=bond0 txqueuelen=1000
+litp create -t eth -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/eth1   -o device_name=eth1 macaddress=08:00:27:24:7f:28 master=bond0 txqueuelen=1000
+litp create -t bond -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/bond0  -o device_name=bond0 ipaddress=10.4.23.3 network_name=tnet
+
+litp create_plan
+litp run_plan
+
+litp update -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/eth1 -d txqueuelen
+litp update -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/eth0 -d txqueuelen
+assertError __err_1 --errors_length 2 \
+    --err_vpath /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/eth0 \
+    --err_vpath /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/eth1 \
+    create_plan
+
+litp restore_model
+
+
+litp create -t eth -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/eth2   -o device_name=eth3 macaddress=08:00:27:24:7f:25 master=bond1 txqueuelen=1000
+litp create -t eth -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/eth3   -o device_name=eth4 macaddress=08:00:27:24:7f:21 master=bond1 txqueuelen=1000
+litp create -t bond -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/bond1  -o device_name=bond1 ipaddress=10.4.24.3 network_name=traffic
+litp update -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/eth2 -d txqueuelen
+litp update -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/eth3 -d txqueuelen
+litp create_plan
+litp run_plan

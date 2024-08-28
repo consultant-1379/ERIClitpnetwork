@@ -1,0 +1,20 @@
+# Common infrastructure
+runLitpScript misc/create_common_infrastructure.inc
+
+# Run common deployment (ms with 1nic; 1 node with 3 nics: 1 bond, 1 bridge, 1 pxe boot)
+runLitpScript misc/create_common_cluster.inc
+
+litp create_plan
+litp run_plan
+
+litp create -t eth -p    /deployments/d1/clusters/c1/nodes/n1/network_interfaces/eth2  -o device_name=eth1 macaddress=00:00:00:00:00:02
+
+# The property can be updated to false
+litp update -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/eth0  -o pxe_boot_only=false
+
+litp create_plan
+
+# The property can be deleted
+litp update -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/eth0  -d pxe_boot_only
+
+litp create_plan

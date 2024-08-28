@@ -1,0 +1,21 @@
+## Verify an error is thrown when the subnet property value is duplicated across several routes
+
+runLitpScript ../custom_setup.inc
+
+litp create -p /infrastructure/networking/routes/test_route6 -t route6 -o subnet='::/0' gateway='2001:bb::1:1'
+litp create -p /infrastructure/networking/routes/test_route6_2 -t route6 -o subnet='::/0' gateway='2001:cc::1:1'
+
+litp create -p /ms/network_interfaces/if_5175a -t eth -o macaddress='00:50:56:00:00:81' device_name='eth2' ipv6address='2001:bb::1:1' network_name='traffic6_5175a'
+litp create -p /ms/network_interfaces/if_5175b -t eth -o macaddress='00:50:56:00:01:01' device_name='eth3' ipv6address='2001:cc::1:1' network_name='traffic6_5175b'
+
+litp create -p /infrastructure/networking/networks/test_network_5175a -t network -o name='traffic6_5175a'
+litp create -p /infrastructure/networking/networks/test_network_5175b -t network -o name='traffic6_5175b'
+
+litp inherit -p /ms/routes/route6_t1 -s /infrastructure/networking/routes/test_route6
+litp inherit -p /ms/routes/route6_t2 -s /infrastructure/networking/routes/test_route6_2
+
+let __err_a --err_type ValidationError --err_message 'Create plan failed: Destination subnet "::/0" is duplicated across several routes: /ms/routes/route6_t1 /ms/routes/route6_t2' --err_vpath /ms/routes
+let __err_b --err_type ValidationError --err_message 'Create plan failed: Local IPv6 address "2001:cc::1:1" can not be used as gateway.' --err_vpath /ms/routes/route6_t2
+let __err_c --err_type ValidationError --err_message 'Create plan failed: Local IPv6 address "2001:bb::1:1" can not be used as gateway.' --err_vpath /ms/routes/route6_t1
+
+assertError __err_a __err_b __err_c create_plan

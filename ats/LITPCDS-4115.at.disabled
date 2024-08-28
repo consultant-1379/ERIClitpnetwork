@@ -1,0 +1,60 @@
+litp create -p /software/profiles/os_prof1 -t os-profile -o name=os-profile1 path=/var/www/html/6/os/x86_64/
+
+litp create -p /deployments/d1 -t deployment
+litp create -p /deployments/d1/clusters/c1 -t cluster
+litp create -p /infrastructure/storage/storage_profiles/profile_1 -t storage-profile-base -o storage_profile_name=sp1
+
+litp create -p /infrastructure/systems/sys1 -t blade -o system_name=CZJ33308HX
+litp create -p /infrastructure/systems/sys1/network_interfaces/nic_1 -t nic -o interface_name=eth1 macaddress=2C:59:E5:3D:83:58
+
+litp create -p /infrastructure/systems/sys2 -t blade -o system_name=CZJ33308HF
+litp create -p /infrastructure/systems/sys2/network_interfaces/nic_0 -t nic -o interface_name=eth0 macaddress=2C:59:E5:3D:A3:50
+litp create -p /infrastructure/systems/sys2/disks/disk0 -t disk -o name=hd0 size=28G bootable=true uuid=600601600f31330078301deb9bb9e311
+litp create -p /infrastructure/systems/sys2/disks/disk1 -t disk -o name=hd1 size=10G bootable=false uuid=600601600f313300bcec965d1eb4e311
+litp create -p /infrastructure/systems/sys2/disks/disk2 -t disk -o name=hd2 size=28G bootable=false uuid=600601600f313300d4780a321eb4e311
+
+litp create -p /infrastructure/systems/sys3 -t blade -o system_name=CZJ33308HQ
+litp create -p /infrastructure/systems/sys3/network_interfaces/nic_0 -t nic -o interface_name=eth0 macaddress=2C:59:E5:3D:93:08
+litp create -p /infrastructure/systems/sys3/disks/disk0 -t disk -o name=hd0 size=28G bootable=true uuid=600601600f3133002021c1f99bb9e311
+litp create -p /infrastructure/systems/sys3/disks/disk1 -t disk -o name=hd1 size=10G bootable=false uuid=600601600f313300aefa6F8e1Eb4e311
+litp create -p /infrastructure/systems/sys3/disks/disk2 -t disk -o name=hd2 size=28G bootable=false uuid=600601600f3133002c030a781eb4e311
+
+litp create -t route -p /infrastructure/networking/routes/mgmt_default -o name="def" subnet="0.0.0.0/0" gateway="10.44.235.1"
+litp create -p /infrastructure/networking/ip_ranges/r1 -t ip-range -o network_name=mgmt start=10.44.235.61 end=10.44.235.63 subnet=10.44.235.0/24
+litp create -p /infrastructure/networking/network_profiles/np1 -t network-profile -o name=net-profile1 management_network=mgmt
+litp create -p /infrastructure/networking/network_profiles/np1/networks/mgmt -t network-old -o network_name=mgmt interface=nic1
+litp create -p /infrastructure/networking/network_profiles/np1/interfaces/nic1 -t interface -o interface_basename=eth1
+litp create -p /infrastructure/networking/network_profiles/np2 -t network-profile -o name=net-profile2 management_network=mgmt
+litp create -p /infrastructure/networking/network_profiles/np2/networks/mgmt -t network-old -o network_name=mgmt interface=nic0
+litp create -p /infrastructure/networking/network_profiles/np2/interfaces/nic0 -t interface -o interface_basename=eth0
+
+litp link -p /ms/system -t blade -o system_name=CZJ33308HX
+litp link -p /ms/ipaddresses/ip1 -t ip-range -o network_name=mgmt address=10.44.235.61
+litp update -p /ms -o hostname=ms1
+
+litp create -p /deployments/d1/clusters/c1/nodes/n1 -t node -o hostname=node1
+litp link -p /deployments/d1/clusters/c1/nodes/n1/system -t blade -o system_name=CZJ33308HF
+litp link -p /deployments/d1/clusters/c1/nodes/n1/os -t os-profile -o name=os-profile1
+litp link -p /deployments/d1/clusters/c1/nodes/n1/ipaddresses/ip1 -t ip-range -o network_name=mgmt address=10.44.235.62
+litp link -t route -p /deployments/d1/clusters/c1/nodes/n1/routes/route1 -o name="def"
+litp link -p /deployments/d1/clusters/c1/nodes/n1/network_profile -t network-profile -o name=net-profile2
+litp link -p /deployments/d1/clusters/c1/nodes/n1/storage_profile -t storage-profile-base -o storage_profile_name=sp1
+
+litp create -p /deployments/d1/clusters/c1/nodes/n2 -t node -o hostname=node2
+litp link -p /deployments/d1/clusters/c1/nodes/n2/system -t blade -o system_name=CZJ33308HQ
+litp link -p /deployments/d1/clusters/c1/nodes/n2/os -t os-profile -o name=os-profile1
+litp link -p /deployments/d1/clusters/c1/nodes/n2/ipaddresses/ip1 -t ip-range -o network_name=mgmt address=10.44.235.63
+litp link -t route -p /deployments/d1/clusters/c1/nodes/n2/routes/route1 -o name="def"
+litp link -p /deployments/d1/clusters/c1/nodes/n2/network_profile -t network-profile -o name=net-profile2
+litp link -p /deployments/d1/clusters/c1/nodes/n2/storage_profile -t storage-profile-base -o storage_profile_name=sp1
+
+litp create_plan
+litp run_plan
+
+litp remove -p /deployments/d1/clusters/c1/nodes/n1/routes/route1
+assertState -p /deployments/d1/clusters/c1/nodes/n1/routes/route1 ForRemoval
+assertErrorMessage "A default route is required for Node 'node1'" create_plan
+
+litp remove -p /deployments/d1/clusters/c1/nodes/n1
+assertState -p /deployments/d1/clusters/c1/nodes/n1 ForRemoval
+litp create_plan

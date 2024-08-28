@@ -1,0 +1,36 @@
+litp create -p /software/profiles/rhel_6_2 -t os-profile -o name='sample-profile' path='/profiles/node-iso/'
+
+litp create -p /infrastructure/networking/routes/r1 -t route -o name=default subnet="0.0.0.0/0" gateway="10.10.10.1"
+
+litp create -p /infrastructure/networking/ip_ranges/ms_network -t ip-range -o network_name='nodes' start='10.10.10.100' end='10.10.10.110' subnet='10.10.10.0/24'
+
+litp create -p /infrastructure/networking/network_profiles/nodes -t network-profile -o name='nodes' management_network='nodes'
+litp create -p /infrastructure/networking/network_profiles/nodes/networks/mynetwork -t network-old -o interface='mynic0' network_name='nodes'
+litp create -p /infrastructure/networking/network_profiles/nodes/interfaces/mynic0 -t interface -o interface_basename='eth0'
+
+litp create -p /infrastructure/systems/system1 -t system -o system_name='MN1VM'
+litp create -p /infrastructure/systems/system1/network_interfaces/nic_0 -t nic -o interface_name='eth0' macaddress='08:00:27:24:8f:27'
+
+litp create -p /infrastructure/storage/storage_profiles/profile_1 -t storage-profile-base -o storage_profile_name=sp1
+
+litp link -p /ms/ipaddresses/ip1 -t ip-range -o network_name='nodes' address='10.10.10.100'
+
+litp create -p /deployments/local_vm -t deployment
+litp create -p /deployments/local_vm/clusters/cluster1 -t cluster
+
+# we must have at least one node
+litp create -p /deployments/local_vm/clusters/cluster1/nodes/node1 -t node -o hostname='node1'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/system -t system -o system_name='MN1VM'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/os -t os-profile -o name='sample-profile'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/ipaddresses/ip1 -t ip-range -o network_name='nodes' address='10.10.10.105'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_profile -t network-profile -o name='nodes'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/storage_profile -t storage-profile-base -o storage_profile_name='sp1'
+litp link -p /deployments/local_vm/clusters/cluster1/nodes/node1/routes/r1 -t route -o name=default
+
+litp create_plan
+assertTask 0 "litpnetwork::config" node1 /deployments/local_vm/clusters/cluster1/nodes/node1/network_profile
+litp run_plan
+
+# update some stuff
+litp update -p /ms/ipaddresses/ip1 -o address='10.10.10.106'
+assertError create_plan

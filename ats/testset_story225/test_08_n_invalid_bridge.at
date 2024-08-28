@@ -1,0 +1,118 @@
+## Verify creating an item of type bridge with invalid properties and/or values results in a validation error either at item creation or create plan.
+
+runLitpScript ../custom_setup.inc
+
+#create three network items
+litp create -t network -p /infrastructure/networking/networks/test_network225 -o name='test' subnet='10.10.10.0/24'
+litp create -t network -p /infrastructure/networking/networks/test_network226 -o name='test2' subnet='20.20.20.0/24'
+litp create -t network -p /infrastructure/networking/networks/test_network227 -o name='test3' subnet='20.20.20.0/26'
+
+#create bridge with non-existant 'network_name'
+litp create -t bridge -p /ms/network_interfaces/br96 -o device_name='br6' ipaddress='10.10.10.96' network_name='unknown'
+
+#assert create_plan ValidationError with expected message is present
+
+let __err_a --err_type ValidationError --err_message 'Create plan failed: Property network_name "unknown" does not match a defined network.' --err_vpath '/ms/network_interfaces/br96'
+let __err_b --err_type ValidationError --err_message 'Create plan failed: Bridge "br6" is not used.' --err_vpath '/ms/network_interfaces/br96'
+
+assertError __err_a __err_b create_plan
+
+litp remove -p /ms/network_interfaces/br96
+assertNone -p  /ms/network_interfaces/br96
+
+#create bridge with ip outside of network range
+litp create -t bridge -p /ms/network_interfaces/br97 -o device_name='br7' ipaddress='9.9.9.9' network_name='test'
+
+#assert create_plan ValidationError with expected message is present
+let __err_a --err_type ValidationError --err_message 'Create plan failed: IP address "9.9.9.9" not within subnet "10.10.10.0/24" of network "test".'
+let __err_b --err_type ValidationError --err_message 'Create plan failed: Bridge "br7" is not used.'
+
+assertError __err_a __err_b create_plan
+
+litp remove -p /ms/network_interfaces/br97
+assertNone -p  /ms/network_interfaces/br97
+
+#create bridge with ipaddress for network item
+litp create -t bridge -p /ms/network_interfaces/if98 -o device_name='br8' ipaddress='10.10.10.0' network_name='test'
+
+#assert create_plan ValidationError with expected message is present
+
+let __err_a --err_type ValidationError --err_message 'Create plan failed: Cannot assign IPv4 address "10.10.10.0" to this interface as it is the network address for its network "test".'
+let __err_b --err_type ValidationError --err_message 'Create plan failed: Bridge "br8" is not used.'
+
+assertError __err_a __err_b create_plan
+
+litp remove -p /ms/network_interfaces/if98
+assertNone -p  /ms/network_interfaces/if98
+
+#create bridge with broadcast ipaddress
+litp create -t bridge -p /ms/network_interfaces/br9 -o device_name='br9' ipaddress='10.10.10.255' network_name='test'
+
+#assert create_plan ValidationError with expected message is present
+
+let __err_a --err_type ValidationError --err_message 'Create plan failed: Cannot assign IPv4 address "10.10.10.255" to this interface as it is the broadcast address for its network "test".'
+let __err_b --err_type ValidationError --err_message 'Create plan failed: Bridge "br9" is not used.'
+
+assertError __err_a __err_b create_plan
+
+litp remove -p /ms/network_interfaces/br9
+assertNone -p  /ms/network_interfaces/br9
+
+#create bridge and interface items with the same 'device_name'
+litp create -t bridge -p /ms/network_interfaces/br10 -o device_name='br10' ipaddress='10.10.10.10' network_name='test'
+litp create -t eth -p /ms/network_interfaces/if10 -o device_name='br10' macaddress='BB:BB:BB:BB:BB:50' bridge='br10'
+
+#assert create_plan ValidationError with expected message is present
+assertError create_plan --err_type ValidationError --err_message='Create plan failed: Interface with device_name "br10" is not unique.' --err_vpath '/ms/network_interfaces/if10'
+
+litp remove -p /ms/network_interfaces/br10
+assertNone -p  /ms/network_interfaces/br10
+
+litp remove -p /ms/network_interfaces/if10
+assertNone -p  /ms/network_interfaces/if10
+
+#create two bridges with same 'device_name'
+litp create -t bridge -p /ms/network_interfaces/br11 -o device_name='br11' ipaddress='10.10.10.11' network_name='test'
+litp create -t eth -p /ms/network_interfaces/if11 -o device_name='eth11' macaddress='BB:BB:BB:BB:BB:51' bridge='br11'
+litp create -t bridge -p /ms/network_interfaces/br12 -o device_name='br11' ipaddress='20.20.20.12' network_name='test2'
+
+#assert create_plan ValidationError with expected message is present
+assertError create_plan --err_type ValidationError --err_message 'Create plan failed: Interface with device_name "br11" is not unique.' --err_vpath '/ms/network_interfaces/br11'
+
+litp remove -p /ms/network_interfaces/br11
+assertNone -p  /ms/network_interfaces/br11
+
+litp remove -p /ms/network_interfaces/if11
+assertNone -p  /ms/network_interfaces/if11
+
+litp remove -p /ms/network_interfaces/br12
+assertNone -p  /ms/network_interfaces/br12
+
+#create two bridges with same 'network_name'
+litp create -t bridge -p /ms/network_interfaces/br13 -o device_name='br13' ipaddress='10.10.10.13' network_name='test'
+litp create -t eth -p /ms/network_interfaces/if13 -o device_name='eth13' macaddress='BB:BB:BB:BB:BB:53' bridge='br13'
+litp create -t bridge -p /ms/network_interfaces/br14 -o device_name='br14' ipaddress='10.10.10.14' network_name='test'
+litp create -t eth -p /ms/network_interfaces/if14 -o device_name='eth14' macaddress='BB:BB:BB:BB:BB:54' bridge='br14'
+
+#assert create_plan ValidationError with expected message is present
+
+let __err_a --err_type ValidationError --err_message 'Create plan failed: Network name "test" must be used by one network-interface.' --err_vpath '/ms/network_interfaces/br13'
+let __err_b --err_type ValidationError --err_message 'Create plan failed: Network name "test" must be used by one network-interface.' --err_vpath '/ms/network_interfaces/br14'
+
+assertError __err_a __err_b create_plan
+
+#create two bridges with the same 'ipaddress'
+litp create -t bridge -p /ms/network_interfaces/br15 -o device_name='br15' ipaddress='20.20.20.15' network_name='test2'
+litp create -t eth -p /ms/network_interfaces/if15 -o device_name='eth15' macaddress='BB:BB:BB:BB:BB:55' bridge='br15'
+litp create -t bridge -p /ms/network_interfaces/br16 -o device_name='br16' ipaddress='20.20.20.15' network_name='test3'
+litp create -t eth -p /ms/network_interfaces/if16 -o device_name='eth16' macaddress='BB:BB:BB:BB:BB:56' bridge='br16'
+
+#assert create_plan ValidationError with expected message is present
+
+let __err_a --err_type ValidationError --err_message 'Create plan failed: IP addresses must be unique per node.' --err_vpath '/ms/network_interfaces/br16'
+let __err_b --err_type ValidationError --err_message 'Create plan failed: IP addresses must be unique per node' --err_vpath '/ms/network_interfaces/br15'
+let __err_b --err_type ValidationError --err_message 'Create plan failed: Overlapping network subnet defined on network interface' --err_vpath '/ms/network_interfaces/br16'
+let __err_b --err_type ValidationError --err_message 'Create plan failed: Overlapping network subnet defined on network interface' --err_vpath '/ms/network_interfaces/br15'
+
+
+assertError __err_a __err_b create_plan

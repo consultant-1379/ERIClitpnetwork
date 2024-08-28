@@ -1,0 +1,70 @@
+litp create -p /infrastructure/storage/storage_profiles/profile_1 -t storage-profile-base -o storage_profile_name=sp1
+litp create -p /software/profiles/rhel_6_4 -t os-profile -o name='sample-profile' path='/profiles/node-iso/'
+
+litp create -p /infrastructure/systems/sys1 -t system -o system_name='Alpha'
+litp create -p /infrastructure/systems/sys1/network_interfaces/nic0 -t nic -o interface_name="eth0" macaddress='DE:AD:BE:EF:13:37'
+
+litp create -p /infrastructure/networking/routes/r1 -t route -o name=default subnet="0.0.0.0/0" gateway="10.4.23.254"
+
+litp create -p /infrastructure/networking/ip_ranges/r1 -t ip-range -o network_name='management' start='10.4.23.50' end='10.4.23.59' subnet='10.4.23.0/24'
+
+litp create -p /infrastructure/networking/network_profiles/np1 -t network-profile -o name='net-profile1' management_network='management'
+litp create -p /infrastructure/networking/network_profiles/np1/interfaces/nic0 -t interface -o interface_basename='eth0'
+litp create -p /infrastructure/networking/network_profiles/np1/bridges/br0 -t bridge -o stp='on' forwarding_delay='30' bridge_name='br0' interfaces='nic0'
+litp create -p /infrastructure/networking/network_profiles/np1/networks/net0 -t network-old -o network_name='management' bridge='br0'
+
+litp create -p /deployments/dep1 -t deployment
+litp create -p /deployments/dep1/clusters/clus1 -t cluster
+litp create -p /deployments/dep1/clusters/clus1/nodes/node1 -t node -o hostname="foo"
+
+
+litp link -p /deployments/dep1/clusters/clus1/nodes/node1/storage_profile -t storage-profile-base -o storage_profile_name="sp1"
+litp link -p /deployments/dep1/clusters/clus1/nodes/node1/system -t system -o system_name="Alpha"
+litp link -p /deployments/dep1/clusters/clus1/nodes/node1/network_profile -t network-profile -o name="net-profile1"
+litp link -p /deployments/dep1/clusters/clus1/nodes/node1/os -t os-profile -o name='sample-profile'
+litp link -p /deployments/dep1/clusters/clus1/nodes/node1/ipaddresses/ip1 -t ip-range -o network_name='management'
+
+litp link -p /deployments/dep1/clusters/clus1/nodes/node1/routes/r1 -t route -o name=default
+
+litp create_plan
+assertState -p /infrastructure/networking/network_profiles/np1/bridges/br0 Initial
+
+litp run_plan
+assertState -p /infrastructure/networking/network_profiles/np1/bridges/br0 Applied
+
+litp update -p /infrastructure/networking/network_profiles/np1/bridges/br0 -o stp='on' forwarding_delay='4' bridge_name='br0' interfaces='nic0'
+assertState -p /infrastructure/networking/network_profiles/np1/bridges/br0 Updated
+
+#litp stop_plan
+litp remove -p /plans/plan
+
+
+# Ensures create_plan generates tasks, otherwise run_plan will fail..
+litp create -p /infrastructure/networking/network_profiles/np2 -t network-profile -o name='net-profile2' management_network='management'
+litp create -p /infrastructure/networking/network_profiles/np2/interfaces/nic0 -t interface -o interface_basename='eth0'
+litp create -p /infrastructure/networking/network_profiles/np2/bridges/br0 -t bridge -o stp='on' forwarding_delay='30' bridge_name='br0' interfaces='nic0'
+litp create -p /infrastructure/networking/network_profiles/np2/networks/net0 -t network-old -o network_name='management' bridge='br0'
+litp create -p /infrastructure/systems/sys2 -t system -o system_name='Beta'
+litp create -p /infrastructure/systems/sys2/network_interfaces/nic0 -t nic -o interface_name="eth0" macaddress='DE:AD:BE:EF:13:37'
+litp create -p /deployments/dep1/clusters/clus1/nodes/node2 -t node -o hostname="bar"
+litp link -p /deployments/dep1/clusters/clus1/nodes/node2/storage_profile -t storage-profile-base -o storage_profile_name="sp1"
+litp link -p /deployments/dep1/clusters/clus1/nodes/node2/system -t system -o system_name="Beta"
+litp link -p /deployments/dep1/clusters/clus1/nodes/node2/network_profile -t network-profile -o name="net-profile2"
+litp link -p /deployments/dep1/clusters/clus1/nodes/node2/os -t os-profile -o name='sample-profile'
+litp link -p /deployments/dep1/clusters/clus1/nodes/node2/ipaddresses/ip1 -t ip-range -o network_name='management'
+litp link -p /deployments/dep1/clusters/clus1/nodes/node2/routes/r1 -t route -o name=default
+
+litp create_plan
+# The item is still in the updated state
+assertState -p /infrastructure/networking/network_profiles/np1/bridges/br0 Updated
+litp run_plan
+assertState -p /infrastructure/networking/network_profiles/np1/bridges/br0 Applied
+
+litp update -p /infrastructure/networking/network_profiles/np1/bridges/br0 -o stp='on' forwarding_delay='4' bridge_name='br6' interfaces='nic0'
+assertState -p /infrastructure/networking/network_profiles/np1/bridges/br0 Updated
+assertError create_plan
+assertState -p /infrastructure/networking/network_profiles/np1/bridges/br0 Updated
+
+litp update -p /infrastructure/networking/network_profiles/np1/bridges/br0 -o stp='on' forwarding_delay='4' bridge_name='br0' interfaces='nic0'
+#litp stop_plan
+litp remove -p /plans/plan

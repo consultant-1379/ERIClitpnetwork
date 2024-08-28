@@ -1,0 +1,14 @@
+## Verifies that a ValidationError is thrown when trying to create two eths with the same device_name
+
+runLitpScript ../custom_setup.inc
+
+litp create -p /infrastructure/networking/networks/test690 -t network -o name='nodes690' subnet=20.20.20.0/24
+litp create -p /infrastructure/networking/networks/test691 -t network -o name='nodes691' subnet=30.30.30.0/24
+
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if690 -t eth -o device_name=eth0 macaddress='00:50:56:00:00:43' network_name='nodes690' ipaddress='20.20.20.2'
+
+litp create_plan
+assertPlanState initial
+
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if691 -t eth -o device_name=eth0 macaddress='00:50:56:00:00:44' network_name='nodes691' ipaddress='30.30.30.3'
+assertError --err_type ValidationError --err_message 'Create plan failed: Interface with device_name "eth0" is not unique.' --err_vpath '/deployments/d1/clusters/c1/nodes/n1/network_interfaces/if690' create_plan

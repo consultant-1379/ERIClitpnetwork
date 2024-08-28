@@ -1,0 +1,16 @@
+## Verify updating the ms bond 'ipaddress' results in a successful create plan
+
+#set up managment network
+litp create -t network -p /infrastructure/networking/networks/mgmt -o subnet='192.168.0.0/24' litp_management='true' name='mgmt'
+litp create -t eth -p /ms/network_interfaces/if0 -o macaddress='00:50:56:00:00:42' master='bondmgmt' device_name='eth0'
+litp create -t bond -p /ms/network_interfaces/b0 -o device_name='bondmgmt' ipaddress='192.168.0.42' ipv6address='2001:1b70:82a1:0103::42/64' miimon='100' mode='1' network_name='mgmt'
+
+litp create_plan
+assertPlanState initial
+
+#update ms bond 'ipaddress'
+litp update -p /ms/network_interfaces/b0 -o ipaddress=192.168.0.45
+
+#create plan and assert plan state as 'initial'
+litp create_plan
+assertPlanState initial

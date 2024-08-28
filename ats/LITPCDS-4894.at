@@ -1,0 +1,45 @@
+litp create -t eth -p /ms/network_interfaces/nic_A -o device_name=eth0 macaddress='de:ad:be:ef:00:00' network_name=one_two_three ipaddress=1.2.3.1
+litp create -t eth -p /ms/network_interfaces/nic_B -o device_name=eth1 macaddress='de:ad:be:ef:00:01' bridge=br_temp
+litp create -t bridge -p /ms/network_interfaces/bridge -o device_name=br_temp ipaddress=4.5.6.7 network_name=four_five_six
+#
+litp create -t eth -p /ms/network_interfaces/nic_C -o device_name=eth2 macaddress='de:ad:be:ef:00:10' network_name=seven_eight_nine ipaddress=7.8.9.10
+
+
+litp create -t network -p /infrastructure/networking/networks/ott -o name=one_two_three subnet=1.2.3.0/24 litp_management=true
+litp create -t network -p /infrastructure/networking/networks/ffs -o name=four_five_six subnet=4.5.6.0/24
+litp create -t network -p /infrastructure/networking/networks/sen -o name=seven_eight_nine subnet=7.8.9.0/24
+
+litp create -t route -p /infrastructure/networking/routes/def -o subnet='0.0.0.0/0' gateway='1.2.3.4'
+litp inherit -p /ms/routes/d -s /infrastructure/networking/routes/def
+
+assertState -p /ms/network_interfaces/nic_B Initial
+litp create_plan
+litp run_plan
+
+assertState -p /ms/network_interfaces/nic_B Applied
+assertState -p /ms/network_interfaces/bridge Applied
+
+litp remove -p /ms/network_interfaces/bridge
+assertError create_plan
+
+# Removing the reference to the bridge on the eth item should allow it to be un-bridged...
+# unfortunately, we cannot unset the bridge property at this time
+#litp update -p /ms/network_interfaces/nic_B -o bridge= network_name=four_five_six ipaddress=4.5.6.7
+
+# Instead we'll need to remove it
+litp remove -p /ms/network_interfaces/nic_B
+litp create_plan
+
+assertState -p /ms/network_interfaces/nic_B ForRemoval
+assertState -p /ms/network_interfaces/bridge ForRemoval
+
+litp run_plan
+
+litp create -t eth -p /ms/network_interfaces/nic_B -o device_name=eth1 macaddress='de:ad:be:ef:00:02' ipaddress=4.5.6.7 network_name=four_five_six
+
+litp create_plan
+litp run_plan
+
+litp remove -p /ms/network_interfaces/nic_C
+litp remove -p /infrastructure/networking/networks/sen
+litp create_plan

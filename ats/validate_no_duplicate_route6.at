@@ -1,0 +1,13 @@
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name='sample-profile' path='/profiles/node-iso/'
+litp create -t route   -p /infrastructure/networking/routes/r1 -o subnet="0.0.0.0/0" gateway="10.10.10.1"
+litp create -t network -p /infrastructure/networking/networks/nodes -o subnet='10.10.10.0/24' name=nodes litp_management=true
+litp create -t eth     -p /ms/network_interfaces/if0 -o network_name=nodes ipaddress=10.10.10.4 device_name=eth0 macaddress=00:00:00:00:00:03 ipv6address=2001::1/64
+litp inherit -p /ms/routes/r1 -s /infrastructure/networking/routes/r1
+
+# Create duplicate route (same subnet)
+litp create -t route6 -p /infrastructure/networking/routes/r6_1 -o subnet=2002::/64 gateway=2001::2
+litp create -t route6 -p /infrastructure/networking/routes/r6_2 -o subnet=2002::/64 gateway=2001::3
+litp inherit -p /ms/routes/r6_1 -s /infrastructure/networking/routes/r6_1
+litp inherit -p /ms/routes/r6_2 -s /infrastructure/networking/routes/r6_2
+
+assertError create_plan

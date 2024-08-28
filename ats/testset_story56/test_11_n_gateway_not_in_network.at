@@ -1,0 +1,22 @@
+## Verify that a ValidationError is returned on create_plan when an invalid gateway is set on the MNs' routes.
+
+runLitpScript ../custom_setup.inc
+
+##create route with invalid 'gateway'
+litp create -p /infrastructure/networking/routes/test_56 -t route -o subnet='1.1.1.0/24' gateway='9.9.9.1'
+litp create -p /infrastructure/networking/networks/test_network1 -t network -o name='test1' subnet='10.10.10.0/24'
+
+#inherit route onto node1
+litp inherit -p /deployments/d1/clusters/c1/nodes/n1/routes/route1 -s /infrastructure/networking/routes/test_56
+litp create -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if1 -t eth -o device_name='eth1' macaddress='00:50:56:00:00:61' ipaddress='10.10.10.10' network_name='test1'
+
+#inherit route onto node2
+litp inherit -p /deployments/d1/clusters/c1/nodes/n2/routes/route1 -s /infrastructure/networking/routes/test_56
+litp create -p /deployments/d1/clusters/c1/nodes/n2/network_interfaces/if1 -t eth -o device_name='eth1' macaddress='00:50:56:00:00:62' ipaddress='10.10.10.11' network_name='test1'
+
+#assert ValidationError with expected message is present
+
+let __err_a --err_type ValidationError --err_message 'Create plan failed: Route gateway is not reachable from any of the interfaces on node "node1"' --err_vpath '/deployments/d1/clusters/c1/nodes/n1/routes/route1'
+let __err_b --err_type ValidationError --err_message 'Create plan failed: Route gateway is not reachable from any of the interfaces on node "node2"' --err_vpath '/deployments/d1/clusters/c1/nodes/n2/routes/route1'
+
+assertError __err_a __err_b create_plan

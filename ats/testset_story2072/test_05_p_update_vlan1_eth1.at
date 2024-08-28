@@ -1,0 +1,47 @@
+## Verify creating and updating vlans results in a successful plan
+runLitpScript ../custom_setup.inc
+
+litp create -t network -p /infrastructure/networking/networks/network_2072 -o subnet='10.10.10.0/24' name='test1'
+assertState -p /infrastructure/networking/networks/network_2072 Initial
+
+litp create -t network -p /infrastructure/networking/networks/network_2073 -o subnet='20.20.20.0/24' name='test2'
+assertState -p /infrastructure/networking/networks/network_2073 Initial
+
+litp create -t vlan -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/vlan_2072 -o device_name='eth2.72' network_name='test1' ipaddress='10.10.10.101'
+assertState -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/vlan_2072 Initial
+
+litp create -t vlan -p /deployments/d1/clusters/c1/nodes/n2/network_interfaces/vlan_2072 -o device_name='eth2.72' network_name='test1' ipaddress='10.10.10.102'
+assertState -p /deployments/d1/clusters/c1/nodes/n2/network_interfaces/vlan_2072 Initial
+
+litp create -t eth -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if_2072 -o device_name='eth2' macaddress='00:50:56:00:00:80' ipaddress='20.20.20.101' network_name='test2'
+assertState -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if_2072 Initial
+
+litp create -t eth -p /deployments/d1/clusters/c1/nodes/n2/network_interfaces/if_2072 -o device_name='eth2' macaddress='00:50:56:00:00:76' ipaddress='20.20.20.102' network_name='test2'
+assertState -p /deployments/d1/clusters/c1/nodes/n2/network_interfaces/if_2072 Initial
+
+litp export -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces -f /tmp/network_n1.xml
+assertFileContents xml/network_n1.xml /tmp/network_n1.xml
+
+litp export -p /deployments/d1/clusters/c1/nodes/n2/network_interfaces -f /tmp/network_n2.xml
+assertFileContents xml/network_n2.xml /tmp/network_n2.xml
+
+litp create_plan
+assertPlanState initial
+
+litp run_plan
+
+assertState -p /infrastructure/networking/networks/network_2072 Applied
+assertState -p /infrastructure/networking/networks/network_2073 Applied
+assertState -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/vlan_2072 Applied
+assertState -p /deployments/d1/clusters/c1/nodes/n2/network_interfaces/vlan_2072 Applied
+assertState -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/if_2072 Applied
+assertState -p /deployments/d1/clusters/c1/nodes/n2/network_interfaces/if_2072 Applied
+
+litp update -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/vlan_2072 -o ipaddress='10.10.10.201'
+assertProperty /deployments/d1/clusters/c1/nodes/n1/network_interfaces/vlan_2072 -o ipaddress='10.10.10.201'
+
+litp update -p /deployments/d1/clusters/c1/nodes/n2/network_interfaces/vlan_2072 -o ipaddress='10.10.10.202'
+assertProperty /deployments/d1/clusters/c1/nodes/n2/network_interfaces/vlan_2072 -o ipaddress='10.10.10.202'
+
+litp create_plan
+assertPlanState initial

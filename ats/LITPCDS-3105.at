@@ -1,0 +1,32 @@
+# tests to see if a missing network interface cause various validation errors
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name=sample-profile path=/var/www/html/6.4/os/x86_64/
+
+litp create -t system -p /infrastructure/systems/vm1 -o system_name=VM1
+litp create -t disk -p /infrastructure/systems/vm1/disks/disk0 -o name=sda size=28G bootable=true uuid=SATA_QEMU_HARDDISK_QM00001
+
+litp create -t network -p /infrastructure/networking/networks/network0 -o name=nodes subnet=10.248.22.0/24 litp_management=true
+
+litp create -t route -p /infrastructure/networking/routes/route1 -o subnet=0.0.0.0/0 gateway=10.248.22.8
+
+
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+
+litp inherit -p /ms/routes/default -s /infrastructure/networking/routes/route1
+
+litp create -t deployment -p /deployments/single_blade
+litp create -t cluster -p /deployments/single_blade/clusters/cluster1
+litp create -t node -p /deployments/single_blade/clusters/cluster1/nodes/node1 -o hostname=node1
+litp create -t eth -p /deployments/single_blade/clusters/cluster1/nodes/node1/network_interfaces/nic0 -o device_name=eth0 macaddress=DE:AD:BE:EF:13:37 network_name=nodes ipaddress=10.248.22.201
+litp inherit -p /deployments/single_blade/clusters/cluster1/nodes/node1/system -s /infrastructure/systems/vm1
+litp inherit -p /deployments/single_blade/clusters/cluster1/nodes/node1/os -s /software/profiles/rhel_6_4
+litp inherit -p /deployments/single_blade/clusters/cluster1/nodes/node1/routes/default -s /infrastructure/networking/routes/route1
+
+litp inherit -p /deployments/single_blade/clusters/cluster1/nodes/node1/storage_profile -s /infrastructure/storage/storage_profiles/profile_1
+
+# missing network nodes
+assertError create_plan
+
+litp create -t eth -p /ms/network_interfaces/nic1 -o network_name=nodes device_name=eth0 ipaddress=10.248.22.200 macaddress=13:37:CA:FE:BE:A7
+
+# should now work
+litp create_plan

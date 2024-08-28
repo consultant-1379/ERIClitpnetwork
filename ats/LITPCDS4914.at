@@ -1,0 +1,36 @@
+## Boilerplate
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name=sample-profile version=rhel6 path=/profiles/node-iso/ arch=x86_64 breed=redhat
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+
+# Routes
+litp create -t route -p /infrastructure/networking/routes/default -o subnet="0.0.0.0/0" gateway="10.4.23.1"
+litp inherit -p /ms/routes/default -s /infrastructure/networking/routes/default
+
+# Networks
+litp create -t network -p /infrastructure/networking/networks/river -o name=river subnet="10.4.23.0/24" litp_management=true
+litp create -t network -p /infrastructure/networking/networks/other_ip -o name=other subnet="192.168.41.0/24" litp_management=false
+litp create -t network -p /infrastructure/networking/networks/nonip -o name=nonip
+
+# MS net config
+litp create -t eth -p /ms/network_interfaces/eth0      -o device_name=eth0 macaddress=08:00:27:24:8f:27 network_name=river ipaddress=10.4.23.50
+litp create -t eth -p /ms/network_interfaces/eth1      -o device_name=eth1 macaddress=08:00:27:24:8f:28 network_name=nonip
+litp create -t eth -p /ms/network_interfaces/eth2      -o device_name=eth2 macaddress=08:00:27:24:8f:29 network_name=other ipaddress=192.168.41.45
+
+litp create_plan
+litp run_plan
+
+assertState -p /ms/network_interfaces/eth0 Applied
+assertState -p /ms/network_interfaces/eth1 Applied
+
+## non-IP -> non-IP is valid
+litp create -t network -p /infrastructure/networking/networks/nonip2 -o name=nonip2
+litp update -p /ms/network_interfaces/eth1 -o network_name=nonip2
+# LITPCDS-7394 no update above resulted in creating a task that hadn't already been executed in the last plan, hence...
+assertError --err_type DoNothingPlanError create_plan
+
+# IP -> IP is valid on non management network
+litp update -p /ms/network_interfaces/eth2 -o ipaddress=192.168.41.46
+litp create_plan
+
+# IP -> non-IP should fail because we cannot unset ipaddress once it has been set
+assertError update -p /ms/network_interfaces/eth2 -o network_name=nonip ipaddress=''

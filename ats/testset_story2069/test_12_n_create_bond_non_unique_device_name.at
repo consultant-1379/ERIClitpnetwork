@@ -1,0 +1,19 @@
+## Verify 2 bond items with same device_name value results in an error
+
+runLitpScript ../custom_setup.inc
+
+#create two network items
+litp create -p /infrastructure/networking/networks/test_network2069 -t network -o name='test1' subnet='10.10.10.0/24'
+litp create -p /infrastructure/networking/networks/test_2060_n2 -t network -o name='test2' subnet='14.14.14.0/24'
+
+#create two bonds with the same 'device_name'
+litp create -p /ms/network_interfaces/b_2069 -t bond -o device_name='bond2069' ipaddress='10.10.10.1' network_name='test1' mode='1' miimon='100'
+litp create -p /ms/network_interfaces/if_2069 -t eth -o macaddress='00:11:22:33:44:55' device_name='eth1' master='bond2069'
+
+litp create_plan
+assertPlanState initial
+
+litp create -p /ms/network_interfaces/b_2069_b -t bond -o device_name='bond2069' ipaddress='14.14.14.1' network_name='test2' mode='1' miimon='101'
+
+#assert create_plan ValidationError with expected message is present
+assertError create_plan --err_type ValidationError --err_message 'Create plan failed: Interface with device_name "bond2069" is not unique.' --err_vpath "/ms/network_interfaces/b_2069_b"

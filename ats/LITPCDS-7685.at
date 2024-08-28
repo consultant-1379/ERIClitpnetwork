@@ -1,0 +1,30 @@
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name='sample-profile' path='/profiles/node-iso/'
+
+litp create -t system -p /infrastructure/systems/system1 -o system_name='system1'
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+litp create -t network -p /infrastructure/networking/networks/traffic -o name=mgmt subnet="192.168.1.0/24" litp_management=true
+
+litp create -t deployment -p /deployments/local_vm
+litp create -t cluster -p /deployments/local_vm/clusters/cluster1
+litp create -t node -p /deployments/local_vm/clusters/cluster1/nodes/node1 -o hostname='node1'
+litp create -t node -p /deployments/local_vm/clusters/cluster1/nodes/node2 -o hostname='node2'
+
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/system -s /infrastructure/systems/system1
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/os -s /software/profiles/rhel_6_4
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/storage_profile -s /infrastructure/storage/storage_profiles/profile_1
+
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node2/system -s /infrastructure/systems/system1
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node2/os -s /software/profiles/rhel_6_4
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node2/storage_profile -s /infrastructure/storage/storage_profiles/profile_1
+
+# Same IP on different nodes and same network ... since LITPDS-7685 was fixed this must fail !
+
+litp create -t eth -p /ms/network_interfaces/if0 -o network_name=mgmt ipaddress=192.168.1.1 device_name=eth0 macaddress=00:00:00:00:00:01
+litp create -t eth -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/if0 -o network_name=mgmt ipaddress=192.168.1.1 ipv6address="fe80::fc54:ff:fe84:0001/64" device_name=eth0 macaddress=00:00:00:00:00:02
+litp create -t eth -p /deployments/local_vm/clusters/cluster1/nodes/node2/network_interfaces/if0 -o network_name=mgmt ipaddress=192.168.1.1 ipv6address="fe80::fc54:ff:fe84:0001/64" device_name=eth0 macaddress=00:00:00:00:00:03
+
+let __err_1 --err_type ValidationError --err_message 'IP addresses must be unique per network.'
+assertError __err_1 create_plan
+let __err_2 --err_type ValidationError --err_message 'IPv6 addresses must be unique per network.'
+assertError __err_2 create_plan
+

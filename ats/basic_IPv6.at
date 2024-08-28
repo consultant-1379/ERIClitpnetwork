@@ -1,0 +1,57 @@
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name='sample-profile' version='rhel6' path='/var/www/html/6.4/os/x86_64/' arch='x86_64' breed='redhat' # kopts='' kopts_post='' # -v
+
+#---
+
+litp create -t system -p /infrastructure/systems/system_ms -o system_name='MS1VM'
+
+litp create -t system -p /infrastructure/systems/system_1 -o system_name='MN1VM'
+litp create -t disk -p /infrastructure/systems/system_1/disks/disk_0 -o name='hd0' size='28G' bootable='true' uuid='ATA_VBOX_HARDDISK_VBf0fce0d7-2c885857'
+
+litp create -t network -p /infrastructure/networking/networks/network_0  -o name='mgmt' subnet='10.10.10.0/24' litp_management='true'
+litp create -t network -p /infrastructure/networking/networks/heartbeat_1  -o name='hb1'
+
+# IPv6-only networks
+litp create -t network -p /infrastructure/networking/networks/traffic_1  -o name='traffic1'
+# Mixed IPv4 and IPv6 networs
+litp create -t network -p /infrastructure/networking/networks/traffic_2  -o name='traffic2' subnet='20.20.20.128/25'
+
+litp create -t route -p /infrastructure/networking/routes/default -o subnet='0.0.0.0/0' gateway='10.10.10.1'
+
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+#---
+
+litp inherit -p /ms/routes/default_gw -s /infrastructure/networking/routes/default
+litp inherit -p /ms/system -s /infrastructure/systems/system_ms
+litp create -t service-base -p /ms/services/cobbler
+litp create -t eth -p /ms/network_interfaces/ifc_0 -o device_name='eth0' network_name='mgmt' macaddress='08:00:27:F3:7C:C5' ipaddress='10.10.10.100'
+
+#---
+
+litp create -t deployment -p /deployments/local_vm
+litp create -t cluster -p /deployments/local_vm/clusters/cluster_1
+
+# Node 1 is single-stack, ie. it uses IPv6 only (except on the mgmt network)
+litp create -t node -p /deployments/local_vm/clusters/cluster_1/nodes/node_1 -o hostname='sc-1'
+litp inherit -p /deployments/local_vm/clusters/cluster_1/nodes/node_1/system -s /infrastructure/systems/system_1
+litp inherit -p /deployments/local_vm/clusters/cluster_1/nodes/node_1/os -s /software/profiles/rhel_6_4
+litp inherit -p /deployments/local_vm/clusters/cluster_1/nodes/node_1/storage_profile -s /infrastructure/storage/storage_profiles/profile_1
+litp inherit -p /deployments/local_vm/clusters/cluster_1/nodes/node_1/routes/default_gw -s /infrastructure/networking/routes/default
+
+
+
+# Management network: IPv4 only
+litp create -t eth -p /deployments/local_vm/clusters/cluster_1/nodes/node_1/network_interfaces/ifc_0 -o device_name='eth0' network_name='mgmt' macaddress='08:00:27:5B:C1:3F' ipaddress='10.10.10.102'
+
+# Heartbeat network: non-IP
+litp create -t eth -p /deployments/local_vm/clusters/cluster_1/nodes/node_1/network_interfaces/ifc_1 -o device_name='eth2' network_name='hb1' macaddress='08:00:27:43:B8:FC'
+
+# IPv6 prefix
+litp create -t eth -p /deployments/local_vm/clusters/cluster_1/nodes/node_1/network_interfaces/ifc_3 -o device_name='eth4' network_name='traffic1' macaddress='08:00:27:CA:22:A6' ipv6address='2001:bb::1:2/64'
+litp create -t eth -p /deployments/local_vm/clusters/cluster_1/nodes/node_1/network_interfaces/ifc_4 -o device_name='eth5' network_name='traffic2' macaddress='08:00:27:0A:3F:43' ipv6address='2001:ab::1:3/64' ipaddress='20.20.20.130'
+
+
+litp create_plan
+litp run_plan
+
+assertDirectoryContents basic_IPv6/ /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/
+

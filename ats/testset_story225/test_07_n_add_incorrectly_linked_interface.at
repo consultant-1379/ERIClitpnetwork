@@ -1,0 +1,14 @@
+## Add an interface which is linked to another interface instead of a bridge.
+
+runLitpScript ../custom_setup.inc
+
+litp create -p /ms/network_interfaces/if225_1 -t eth -o macaddress='00:50:56:00:00:81' device_name='eth2' bridge='br225'
+assertState -p /ms/network_interfaces/if225_1 Initial
+
+litp create -p /ms/network_interfaces/if225_2 -t eth -o device_name='br225' ipaddress='10.10.10.2' network_name='test' macaddress='00:50:56:00:01:01'
+assertState -p /ms/network_interfaces/if225_2 Initial
+
+let __err_a --err_type "ValidationError" --err_message 'Create plan failed: Property network_name "test" does not match a defined network.' --err_vpath "/ms/network_interfaces/if225_2"
+let __err_b --err_type "ValidationError" --err_message 'Create plan failed: Property bridge "br225" does not correspond to a valid bridge.' --err_vpath "/ms/network_interfaces/if225_1"
+
+assertError __err_a __err_b create_plan

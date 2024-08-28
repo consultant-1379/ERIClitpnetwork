@@ -1,0 +1,41 @@
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name='sample-profile' path='/profiles/node-iso/'
+
+litp create -t system -p /infrastructure/systems/system1 -o system_name='MN1VM'
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+litp create -t route -p /infrastructure/networking/routes/r1 -o subnet="0.0.0.0/0" gateway="10.10.10.1"
+
+litp create -t deployment -p /deployments/local_vm
+litp create -t cluster -p /deployments/local_vm/clusters/cluster1
+litp create -t node -p /deployments/local_vm/clusters/cluster1/nodes/node1 -o hostname='node1'
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/system -s /infrastructure/systems/system1
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/os -s /software/profiles/rhel_6_4
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/storage_profile -s /infrastructure/storage/storage_profiles/profile_1
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node1/routes/r1 -s /infrastructure/networking/routes/r1
+
+litp inherit -p /ms/routes/r1 -s /infrastructure/networking/routes/r1
+
+litp create -t eth -p /deployments/local_vm/clusters/cluster1/nodes/node1/network_interfaces/if0 -o network_name=nodes ipaddress=10.10.10.3 device_name=eth0 macaddress=00:00:00:00:00:01
+
+litp create -p /infrastructure/networking/networks/nodes     -t network -o subnet='10.10.10.0/24' name=nodes litp_management=true
+
+
+litp create -t network -p /infrastructure/networking/networks/southside -o subnet='20.10.10.0/24' name=southside
+
+
+litp create -p /ms/network_interfaces/if1   -t eth    -o macaddress='08:00:27:5B:C2:AA' device_name='eth1' bridge='br0'
+litp create -p /ms/network_interfaces/if2   -t eth    -o macaddress='08:00:27:5B:C2:AB' device_name='eth2' bridge='br0'
+litp create -t bridge -p /ms/network_interfaces/mybr0 -o device_name='br0'  ipaddress='10.10.10.131' forwarding_delay=4 network_name='nodes'
+
+litp create -p /ms/network_interfaces/if3   -t eth    -o device_name='eth3' bridge='br1' macaddress='de:ad:be:ef:00:01'
+litp create -p /ms/network_interfaces/if4   -t eth    -o device_name='eth4' bridge='br1' macaddress='de:ad:be:ef:00:02'
+litp create -t bridge -p /ms/network_interfaces/mybr1 -o device_name='br1'  ipaddress='20.10.10.134' forwarding_delay=4 network_name='southside'
+
+
+litp create_plan
+#litp run_plan
+
+#litp update -p /ms/network_interfaces/mybr0 -o device_name='br1'
+#litp update -p /ms/network_interfaces/mybr1 -o device_name='br0'
+#assertError create_plan
+
+

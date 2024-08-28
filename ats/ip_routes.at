@@ -1,0 +1,60 @@
+# Boilerplate bare-bones 1-node cluster
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name=sample-profile version=rhel6 path=/profiles/node-iso/ arch=x86_64 breed=redhat
+litp create -t system -p /infrastructure/systems/system_1 -o system_name=MN1VM
+litp create -t disk -p /infrastructure/systems/system_1/disks/disk0 -o name=hd0 size=28G bootable=true uuid="SATA_VBOX_HARDDISK_VBxxxxxxxx-xxxxxxxx"
+
+litp create -t system -p /infrastructure/systems/ms_system -o system_name=MS
+litp create -t disk -p /infrastructure/systems/ms_system/disks/disk0 -o name=hd0 size=28G bootable=true uuid="SATA_VBOX_HARDDISK_VBxxxxxxxx-xxxxxxxx"
+
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+
+litp create -t deployment -p /deployments/local_vm
+litp create -t cluster -p /deployments/local_vm/clusters/cluster1
+litp create -t node -p /deployments/local_vm/clusters/cluster1/nodes/node_1 -o hostname=mn1
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node_1/system -s /infrastructure/systems/system_1
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node_1/os -s /software/profiles/rhel_6_4
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node_1/storage_profile -s /infrastructure/storage/storage_profiles/profile_1
+
+
+litp create -t eth -p /deployments/local_vm/clusters/cluster1/nodes/node_1/network_interfaces/nic0 -o device_name=eth0 macaddress=08:00:27:5B:C1:3F ipaddress=10.10.10.1 network_name=mgmt 
+litp create -t eth -p /ms/network_interfaces/nic0 -o  device_name=eth0 macaddress=08:00:27:5B:C1:3E ipaddress=10.10.10.4 network_name=mgmt 
+litp create -t network -p /infrastructure/networking/networks/directly_attached_A -o name=mgmt litp_management=true subnet="10.10.10.0/24"
+
+
+assertError create -t route -p /infrastructure/networking/routes/bad_route_no_netmask -o gateway=192.168.0.3 subnet="10.11.12.0"
+assertError create -t route -p /infrastructure/networking/routes/bad_route_gw_in_subnet -o gateway=192.168.0.3 subnet="192.168.0.0/24"
+assertError create -t route -p /infrastructure/networking/routes/bad_route_mcast_gw -o gateway=235.236.237.238 subnet="192.168.1.0/24"
+
+litp create -t route -p /infrastructure/networking/routes/route_0 -o gateway=10.10.10.1 subnet="192.168.1.0/24"
+litp create -t route -p /infrastructure/networking/routes/default -o gateway=10.10.10.2 subnet="0.0.0.0/0"
+litp inherit -p /ms/routes/default -s /infrastructure/networking/routes/default
+
+
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node_1/routes/route0 -s /infrastructure/networking/routes/route_0
+litp inherit -p /deployments/local_vm/clusters/cluster1/nodes/node_1/routes/route1 -s /infrastructure/networking/routes/default
+
+litp create_plan
+
+litp create -t route -p /infrastructure/networking/routes/route_A -o gateway=10.10.10.2 subnet="172.16.19.0/24"
+litp create -t route -p /infrastructure/networking/routes/route_B -o gateway=10.10.10.2 subnet="172.16.20.0/24"
+litp create_plan
+
+
+litp run_plan
+assertFileContents ip_routes/mn1.pp /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/mn1.pp
+
+##litp create -p /ms/network_interfaces/nic2 -t eth -o ipaddress=10.10.10.4 macaddress=00:11:22:33:44:55 device_name=eth1
+
+litp inherit -p /ms/system -s /infrastructure/systems/ms_system
+
+litp inherit -p /ms/routes/route_A -s /infrastructure/networking/routes/route_A
+litp inherit -p /ms/routes/route_B -s /infrastructure/networking/routes/route_A
+
+assertError create_plan
+litp remove -p /ms/routes/route_B 
+
+litp create_plan
+litp run_plan
+assertFileContents ip_routes/ms1.pp /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/ms1.pp
+
+litp show_plan

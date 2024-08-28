@@ -1,0 +1,24 @@
+## Verify that network interface device names and VLAN IDs must be unique
+
+runLitpScript ../custom_setup.inc
+
+#create 3 network items
+
+litp create -p /infrastructure/networking/networks/network_2072 -t network -o name='test1' subnet='10.10.10.0/24'
+litp create -p /infrastructure/networking/networks/network_2073 -t network -o name='test2' subnet='20.20.20.0/24'
+litp create -p /infrastructure/networking/networks/network_2074 -t network -o name='test3' subnet='30.30.30.0/24'
+
+#create 2 vlan items with same 'device_name' value
+litp create -p /ms/network_interfaces/vlan_2072 -t vlan -o device_name='eth2.72' network_name='test1' ipaddress='10.10.10.101'
+litp create -p /ms/network_interfaces/vlan_2073 -t vlan -o device_name='eth2.72' network_name='test3' ipaddress='30.30.30.101'
+
+#create eth item
+litp create -p /ms/network_interfaces/if_2072 -t eth -o device_name='eth2' macaddress='00:50:56:00:00:81' network_name='test2' ipaddress='20.20.20.101'
+
+#assert create_plan ValidationError with expected message is present
+
+let __err_a --err_type ValidationError --err_message 'Create plan failed: Interface with device_name "eth2.72" is not unique.' --err_vpath '/ms/network_interfaces/vlan_2072'
+let __err_b --err_type ValidationError --err_message 'Create plan failed: VLAN ID "72" is used for more than one interface, it must be unique.' --err_vpath '/ms/network_interfaces/vlan_2072'
+let __err_c --err_type ValidationError --err_message 'Create plan failed: VLAN ID "72" is used for more than one interface, it must be unique.' --err_vpath '/ms/network_interfaces/vlan_2073'
+
+assertError __err_a __err_b __err_c create_plan

@@ -1,0 +1,14 @@
+##Verify creating bonded interface with vlan is not supported
+
+runLitpScript ../custom_setup.inc
+
+#create network item
+litp create -p /infrastructure/networking/networks/test_network2069 -t network -o name='test1' subnet='10.10.10.0/24'
+
+#create bonded interface and vlan items in the same plan (not supported)
+litp create -p /ms/network_interfaces/if_2069 -t eth -o macaddress='08:00:27:24:8f:29' device_name='eth1' master='bond2069'
+litp create -p /ms/network_interfaces/b_2069 -t bond -o device_name='bond2069' ipaddress='10.10.10.1' network_name='test1' mode='1' miimon='100'
+litp create -p /ms/network_interfaces/vlan_2069 -t vlan -o device_name='eth1.2069' ipaddress='10.10.10.2' network_name='test1'
+
+#assert create_plan ValidationError with expected message is present
+assertError create_plan --err_type ValidationError --err_message 'Create plan failed: The following network interfaces are Bonded and VLAN tagged; this is not currently supported: eth1' --err_vpath '/ms/network_interfaces'

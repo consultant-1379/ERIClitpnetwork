@@ -1,0 +1,46 @@
+# Boilerplate 2-node cluster with MS
+
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name=sample-profile version=rhel6 path=/profiles/node-iso/ arch=x86_64 breed=redhat
+
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+litp create -t route -p /infrastructure/networking/routes/default -o subnet="0.0.0.0/0" gateway="10.0.0.254"
+litp create -t network -p /infrastructure/networking/networks/river -o name=river subnet="10.0.0.0/24" litp_management=true
+litp create -t deployment -p /deployments/vm
+litp create -t cluster -p /deployments/vm/clusters/c1
+
+# Node 1
+litp create -t system -p /infrastructure/systems/mn1 -o system_name=MN1
+litp create -t node -p /deployments/vm/clusters/c1/nodes/mn1 -o hostname=node1
+litp inherit -p /deployments/vm/clusters/c1/nodes/mn1/system -s /infrastructure/systems/mn1
+litp inherit -p /deployments/vm/clusters/c1/nodes/mn1/os -s /software/profiles/rhel_6_4
+litp inherit -p /deployments/vm/clusters/c1/nodes/mn1/storage_profile -s /infrastructure/storage/storage_profiles/profile_1
+litp inherit -p /deployments/vm/clusters/c1/nodes/mn1/routes/default -s /infrastructure/networking/routes/default
+litp create -t eth -p /deployments/vm/clusters/c1/nodes/mn1/network_interfaces/eth0 -o device_name=eth0 macaddress=DE:AD:BE:EF:13:37 network_name=river ipaddress=10.0.0.2
+
+# Node 2
+litp create -t system -p /infrastructure/systems/mn2 -o system_name=MN2
+litp create -t node -p /deployments/vm/clusters/c1/nodes/mn2 -o hostname=node2
+litp inherit -p /deployments/vm/clusters/c1/nodes/mn2/system -s /infrastructure/systems/mn2
+litp inherit -p /deployments/vm/clusters/c1/nodes/mn2/os -s /software/profiles/rhel_6_4
+litp inherit -p /deployments/vm/clusters/c1/nodes/mn2/storage_profile -s /infrastructure/storage/storage_profiles/profile_1
+litp inherit -p /deployments/vm/clusters/c1/nodes/mn2/routes/default -s /infrastructure/networking/routes/default
+litp create -t eth -p /deployments/vm/clusters/c1/nodes/mn2/network_interfaces/eth0 -o device_name=eth0 macaddress=DE:AD:BE:EF:13:38 network_name=river ipaddress=10.0.0.3
+
+# MS
+litp inherit -p /ms/routes/default -s /infrastructure/networking/routes/default
+litp create -t eth -p /ms/network_interfaces/eth0 -o device_name=eth0 macaddress=DE:AD:BE:EF:13:39 bridge=br0
+
+
+### AT specific bits..
+litp create -t eth -p /ms/network_interfaces/eth1      -o device_name=vnet0 macaddress=DE:AD:BE:EF:13:40 bridge=br0
+litp create -t eth -p /ms/network_interfaces/eth2      -o device_name=vnet1 macaddress=DE:AD:BE:EF:13:41 bridge=br0
+
+litp create -t bridge -p /ms/network_interfaces/bridge -o device_name=br0  network_name=river ipaddress=10.0.0.1 stp=false forwarding_delay=4
+
+litp create_plan
+litp run_plan
+assertFileContents bridging_single_vm/ms1.pp /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/ms1.pp
+assertFileContents bridging_single_vm/node1.pp /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/node1.pp
+assertFileContents bridging_single_vm/node2.pp /opt/ericsson/nms/litp/etc/puppet/manifests/plugins/node2.pp
+
+

@@ -1,0 +1,17 @@
+# disabled ... assertError doesnt catches the error :-(
+
+litp create -t os-profile -p /software/profiles/rhel_6_4 -o name=sample-profile version=rhel6 path=/profiles/node-iso/ arch=x86_64 breed=redhat
+litp create -t storage-profile-base -p /infrastructure/storage/storage_profiles/profile_1
+
+litp create -t route   -p /infrastructure/networking/routes/default -o subnet="0.0.0.0/0" gateway="10.4.23.1"
+litp inherit -p /ms/routes/default -s /infrastructure/networking/routes/default
+litp create -t network -p /infrastructure/networking/networks/mgmt  -o name=mgmt  subnet="10.4.23.0/24" litp_management=true
+
+# bridge must be used by at least, one interface, eth, vlan or bond.
+# this case uses vlan
+
+litp create -t bridge -p /ms/network_interfaces/br0 -o device_name=br0 -o ipaddress=10.4.23.10 network_name=mgmt
+litp create -t eth -p /ms/network_interfaces/eth0 -o device_name=eth0 macaddress=aa:aa:aa:aa:aa:aa
+litp create -t vlan -p /ms/network_interfaces/vlan111 -o device_name=eth0.111 bridge=br3
+
+assertError create_plan

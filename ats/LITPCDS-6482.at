@@ -1,0 +1,17 @@
+litp create -p /infrastructure/networking/routes/r1 -t route -o subnet=0.0.0.0/0 gateway=192.168.56.1
+
+litp create -p /infrastructure/networking/routes/r2 -t route6 -o subnet=::/0 gateway=2001::800:27ff:fe00:0
+
+litp create -t network -p /infrastructure/networking/networks/n0 -o name='mgmt' subnet='192.168.56.0/24' litp_management='true'
+
+litp create -t network -p /infrastructure/networking/networks/data -o name=data
+
+litp create -t eth -p /ms/network_interfaces/if0 -o ipv6address=2001::a00:27ff:fea1:9ecf macaddress='08:00:27:A1:9E:CF' device_name='eth0' network_name='data'
+
+litp create -t eth -p /ms/network_interfaces/if1 -o ipaddress='192.168.56.101' macaddress='08:00:27:23:6E:EC' device_name='eth1' network_name='mgmt'
+
+litp inherit -p /ms/routes/r1 -s /infrastructure/networking/routes/r1
+
+litp inherit -p /ms/routes/r2 -s /infrastructure/networking/routes/r2
+
+litp create_plan

@@ -1,0 +1,12 @@
+# Common infrastructure
+runLitpScript misc/create_common_infrastructure.inc
+
+# Run common deployment (ms with 1nic; 1 node with 3 nics: 1 bond, 1 bridge, 1 pxe boot)
+runLitpScript misc/create_common_cluster.inc
+
+litp create -t network -p /infrastructure/networking/networks/n2 -o name=other subnet="10.10.0.0/24"
+litp create -t vlan -p /deployments/d1/clusters/c1/nodes/n1/network_interfaces/vlan1 -o device_name=eth0.10 network_name=other ipaddress=10.10.0.10
+
+# Set pxe_boot_only in a non initial node
+let __err_node_not_initial --err_type ValidationError --err_message 'Item "eth" cannot be tagged when "pxe_boot_only" property is set to "true"' --vpath /deployments/d1/clusters/c1/nodes/n1/network_interfaces/eth1
+assertError __err_node_not_initial create_plan

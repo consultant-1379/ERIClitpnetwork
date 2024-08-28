@@ -1,0 +1,61 @@
+##############
+# This AT is for development testing
+#
+# Goal: check if a task is created for each node to redefine network-interface
+#       configuration once a *non-management* network subnet is expanded.
+#
+# Comment: Being a network expansion that embraces the current configured
+#       network interfaces addresses, the resulted tasks should only update the
+#       netmask and broadcast address.
+#
+# Scenario:
+#       traffic1 network: 10.10.20.0/24
+#       N1..: 10.10.20.3 (if0)
+#       N2..: 10.10.20.4 (if0)
+#
+# Actions:
+#       Expand traffic1 network to 10.10.20.0/23
+#
+
+####
+# Bulding the scenario
+#
+assertNoPlan
+runLitpScript basic_scenario.atlib
+assertPlanState successful
+
+####
+# Actions
+#
+litp update -p /infrastructure/networking/networks/t1 -o subnet=10.10.20.0/23
+litp create_plan
+
+####
+# Pre-run Checks
+#
+assertConfigTask node1 litpnetwork::config eth1 /deployments/at/clusters/c1/nodes/n1/network_interfaces/if1 nozeroconf='yes' userctl='no' ipaddr='10.10.20.3' broadcast='10.10.21.255' netmask='255.255.254.0' bootproto='static' ensure='present' hwaddr='00:00:00:00:01:02' onboot='yes'
+
+assertConfigTask node2 litpnetwork::config eth1 /deployments/at/clusters/c1/nodes/n2/network_interfaces/if1 nozeroconf='yes' userctl='no' ipaddr='10.10.20.4' broadcast='10.10.21.255' netmask='255.255.254.0' bootproto='static' ensure='present' hwaddr='00:00:00:00:02:02' onboot='yes'
+
+####
+# Run plan
+#
+litp run_plan
+
+####
+# Post-run Checks
+#
+assertPlanState successful
+
+# mgmt network
+assertProperty /infrastructure/networking/networks/t1 -o subnet=10.10.20.0/23
+assertState -p /infrastructure/networking/networks/t1 Applied
+
+# N1
+assertProperty /deployments/at/clusters/c1/nodes/n1/network_interfaces/if1 -o ipaddress=10.10.20.3
+assertState -p /deployments/at/clusters/c1/nodes/n1/network_interfaces/if1 Applied
+
+# N2
+assertProperty /deployments/at/clusters/c1/nodes/n2/network_interfaces/if1 -o ipaddress=10.10.20.4
+assertState -p /deployments/at/clusters/c1/nodes/n2/network_interfaces/if1 Applied
+

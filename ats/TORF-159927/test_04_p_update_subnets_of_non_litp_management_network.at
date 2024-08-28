@@ -1,0 +1,36 @@
+#       TORF-159928 As a litp user i want to be able to modify subnet definition
+#       in the model and have the networking plugin act accordingly
+#
+#       TEST_04_P_UPDATE_SUBNETS_OF_NON_LITP_MANAGEMENT_NETWORK
+#       Description:
+#               Test to verify that a user can update the subnets of a network
+#               not defined as the litp_management network .i.e. traffic networks
+#
+#       Steps:
+#               1. Create networks on a vcs-cluster
+#               2. Create/ Run plan
+#               3. Update network subnets of non litp-management network
+#               4. Create Plan
+#               5. Ensure no validation error is returned
+#       Expected Result:
+#               A user can update the subnet of a network that is not configured as
+#               the litp_management network.
+#
+# Step 1: Create networks on a vcs-cluster
+runLitpScript basic_scenario.atlib
+
+# Step 2: Create/ Run plan
+assertPlanState successful
+
+# Step 3: Update network subnets of non litp-management network, in this case a traffic network
+litp update -p /infrastructure/networking/networks/t3 -o subnet=10.10.40.0/23
+
+# Step 4: Create/ Run plan again
+litp create_plan
+
+assertConfigTask node1 litpnetwork::config eth3 /deployments/at/clusters/c1/nodes/n1/network_interfaces/if3 nozeroconf='yes' userctl='no' ipaddr='10.10.40.3' broadcast='10.10.41.255' netmask='255.255.254.0' bootproto='static' ensure='present' hwaddr='00:00:00:00:01:04' onboot='yes'
+
+litp run_plan
+
+# Step 5: Ensure no validation error is returned
+assertPlanState successful
